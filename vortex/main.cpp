@@ -14,11 +14,12 @@ int main() {
     int cnt = 0;
     size_t birth;                                                   // расширенное количество рождаемых ¬Ё
     double rash;                                                    // (кратно BLOCK_SIZE)
-	size_t p = QUANT;												// количество точек рождени€ ¬Ё
+	size_t p = 0;												// количество точек рождени€ ¬Ё
     cudaError_t cuerr;												// ошибки CUDA
     cudaDeviceReset();
+	load_profile(panels_host, p);
     do {
-        M = matr_creation(p);                                       // генераци€ "матрицы формы"
+        M = matr_creation(panels_host, p);                                       // генераци€ "матрицы формы"
         ++cnt;
     } while (M == NULL && cnt < 10);
     cnt = 0;
@@ -52,11 +53,13 @@ int main() {
     cuerr=cudaMalloc((void**)&Momentum_device, sizeof(TVars));
     cuerr=cudaMalloc((void**)&F_p_device, sizeof(PVortex));
     cuerr=cudaMalloc((void**)&M_device, (birth+1) * (birth+1) * sizeof(TVars));
+	cuerr = cudaMalloc((void**)&panels_device, birth * sizeof(tPanel));
     cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
     cuerr=cudaMemcpy(d_g_device, &TVarsZero, sizeof(TVars), cudaMemcpyHostToDevice);
     cuerr=cudaMemcpy(Momentum_device, &Momentum_host, sizeof(TVars), cudaMemcpyHostToDevice);
     cuerr=cudaMemcpy ( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice);
 	cuerr=cudaMemcpy(M_device, M, (birth+1) * (birth+1) * sizeof(TVars), cudaMemcpyHostToDevice);
+	cuerr=cudaMemcpy(panels_device, panels_host, birth * sizeof(tPanel), cudaMemcpyHostToDevice);
     // все массивы имеют переменную длину и пам€ть дл€ них выдел€етс€ в incr_vort_quont()
 
 	delete[] M;
@@ -100,7 +103,9 @@ int main() {
 //	    save_to_file_size(2*j);
 
         // "рождение" ¬Ё
-		err = vort_creation(POS_device, V_inf_device, p, birth, n, M_device, d_g_device);
+
+		err = vort_creation(POS_device, V_inf_device, p, birth, n, M_device, d_g_device, panels_device);
+
         if (err != 0) {
             cout << "Creation ERROR!" << endl;
             mem_clear();
@@ -176,7 +181,8 @@ int main() {
 //		if ((j%100 == 0) && (j%1000 != 0)) cout<<"j= "<<j<<endl;
 
         // расчЄт скоростей
-		err = Speed(POS_device, V_inf_device, s, VEL_device, d_device, nu);									
+
+		err = Speed(POS_device, V_inf_device, s, VEL_device, d_device, nu, panels_device);									
 		if (err != 0) {
             cout << "Speed evaluation ERROR!" << endl;
             mem_clear();
@@ -198,7 +204,8 @@ int main() {
         cuerr=cudaMemcpy (d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice);
         cuerr=cudaMemcpy (Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice);
         // перемещение ¬Ё
-		err = Step(POS_device, VEL_device, n, s, d_g_device, F_p_device , Momentum_device);
+
+		err = Step(POS_device, VEL_device, n, s, d_g_device, F_p_device , Momentum_device, panels_device);
 		if (err != 0) {
             cout << "Moving ERROR!" << endl;
             mem_clear();
@@ -284,3 +291,35 @@ void save_forces(PVortex F_p, TVars M, int step) {
     outfile << step << " " << (double)F_p.v[0] << " " << (double)F_p.v[1] << ' ' << M << '\n';
     outfile.close();
 }
+
+void load_profile(tPanel *&panels, size_t &p) {
+	using namespace std;
+	ifstream infile;
+	infile.open(PR_FILE);
+	char *buff = new char[255];
+	infile >> buff;
+	infile >> buff;
+	infile >> p;
+	double rash = (double)(p) / BLOCK_SIZE;
+	size_t birth = (size_t)(BLOCK_SIZE * ceil(rash));
+	panels = new tPanel[birth];
+	for (size_t i = 0; i < p; ++i) {
+		infile >> panels[i].n;
+		infile >> panels[i].left[0];
+		infile >> panels[i].left[1];
+		infile >> panels[i].right[0];
+		infile >> panels[i].right[1];
+		infile >> panels[i].contr[0];
+		infile >> panels[i].contr[1];
+		infile >> panels[i].birth[0];
+		infile >> panels[i].birth[1];
+		infile >> panels[i].norm[0];
+		infile >> panels[i].norm[1];
+		infile >> panels[i].tang[0];
+		infile >> panels[i].tang[1];
+		infile >> panels[i].length;
+		infile >> panels[i].n_of_lpanel;
+		infile >> panels[i].n_of_rpanel;
+	}
+}
+

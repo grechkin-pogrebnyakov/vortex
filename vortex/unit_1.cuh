@@ -2,7 +2,7 @@
 //#include "unita.h"
 
 //создание "матрицы формы" и еЄ обращение
-TVars *matr_creation(size_t s);
+TVars *matr_creation(tPanel *panels, size_t s);
 // сохранение матрицы
 int save_matr(TVars* M, size_t size, char *name);
 // сохранение матрицы
@@ -19,12 +19,14 @@ void clear_memory (TVars **M, size_t s);
 int incr_vort_quont(Vortex *&p_host, Vortex *&p_dev, PVortex *&v_host, PVortex *&v_dev, TVars *&d_dev, size_t &size);
 // рождение вихрей на профиле
 int vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_of_birth_BLOCK_S,
-                     size_t n, TVars * M_Dev, TVars *d_g);
+                     size_t n, TVars * M_Dev, TVars *d_g, tPanel *panels);
+
 // запуск таймера
 void start_timer(cudaEvent_t &start, cudaEvent_t &stop);
 // остановка таймера
 float stop_timer(cudaEvent_t start, cudaEvent_t stop);
 // определение скоростей в каждой точке через интенсивности вихрей
-int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu);
+
+int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels);
 // движение на одном временном шаге + сортировка ¬Ё + коллапс
-int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p, TVars *M);
+int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels);
