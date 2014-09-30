@@ -301,7 +301,7 @@ __global__ void setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *C
 	__syncthreads();
 	for (int j = (i+1); j < n; j++ ) {
 		if ((abs(Setx[i] - Setx[j]) < 2) && (abs(Sety[i] - Sety[j]) < 2)) {
-			if (Ro2(pos[i].r,pos[j].r) < (4.0 * EPS2 / 9.0)) {
+			if (Ro2(pos[i].r,pos[j].r) < R_COL) {
 				COL[i] = j;
 				j = n + 5;
 			}
