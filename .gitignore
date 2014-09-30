@@ -6,6 +6,8 @@ vortex/M.txt
 vortex/L.txt
 vortex/F_p.txt
 vortex/vortex.vcxproj
+vortex.sln
+vortex/bmp/
 
 # User-specific files
 *.suo
