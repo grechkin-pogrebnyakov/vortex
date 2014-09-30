@@ -7,7 +7,8 @@ __global__ void zero_Kernel(float *randoms, Vortex *pos, int s ) {
 	pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5; 
 	pos[s+ind].g = a; 
 }
-__global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p) {
+
+__global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
     R_p[i] = 0.0;
     TVctr y = {0.0, 0.0};
@@ -21,10 +22,10 @@ __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size
     __shared__ TVctr b_sh [BLOCK_SIZE];
     // интенсивность воздействующей точки
     __shared__ TVars g [BLOCK_SIZE];
-    a[0]=R_contr_x(QUANT,i);
-    a[1]=R_contr_y(QUANT,i);
-    n[0]=N_contr_x(QUANT,i);
-    n[1]=N_contr_y(QUANT,i);
+    a[0]=R_contr_x(panels,i);
+    a[1]=R_contr_y(panels,i);
+    n[0]=N_contr_x(panels,i);
+    n[1]=N_contr_y(panels,i);
     for (int f = 0 ; f < n_vort ; f += BLOCK_SIZE) {
         b_sh[threadIdx.x][0]=pos[threadIdx.x+f].r[0];
         b_sh[threadIdx.x][1]=pos[threadIdx.x+f].r[1];
@@ -44,7 +45,8 @@ __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size
 //	V[i].v[k] =  (*V_inf)[k];
     __syncthreads(); 
 }
-__global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t n_birth_BLOCK_S, TVars * M, TVars *d_g, TVars *R_p) {
+
+__global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t n_birth_BLOCK_S, TVars * M, TVars *d_g, TVars *R_p, tPanel *panel) {
 	int i= blockIdx.x * blockDim.x + threadIdx.x;
 	register TVars g = 0.0;
 	for (size_t j = 0; j < n_birth; ++j) {
@@ -57,8 +59,9 @@ __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t 
 	{
 //		pos[i+n_vort].r[0] = pos_N.r[0];
 //		pos[i+n_vort].r[1] = pos_N.r[1];
-		pos[i+n_vort].r[0] = R_birth_x(n_birth, i);
-		pos[i+n_vort].r[1] = R_birth_y(n_birth, i);
+
+		pos[i+n_vort].r[0] = R_birth_x(panel, i);
+		pos[i+n_vort].r[1] = R_birth_y(panel, i);
 		pos[i+n_vort].g = g;
 	}
 }
@@ -162,7 +165,8 @@ __global__ void diffusion_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars
 //            V[i].v[k] = II_2[k];
     }
 }
-__global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars nu) {
+
+__global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars nu, tPanel *panels) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
     TVctr Ra = {0.0, 0.0};
     TVctr Rb = {0.0, 0.0};
@@ -183,24 +187,26 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
     TVctr II_3 = {0, 0};
     //	TVars denomenator = 2 * M_PI * dd; // знаменатель
     for (int f = 0; f < QUANT; ++f) {
-        Ra[0] = R_birth_x(QUANT, f);
-        Ra[1] = R_birth_y(QUANT, f);
-        Rb[0] = R_birth_x(QUANT, f + 1);
-        Rb[1] = R_birth_y(QUANT, f + 1);
-        Rk[0] = R_contr_x(QUANT, f);
-        Rk[1] = R_contr_y(QUANT, f);
+
+        Ra[0] = R_birth_x(panels, f);
+        Ra[1] = R_birth_y(panels, f);
+        Rb[0] = R_birth_x(panels, f + 1);
+        Rb[1] = R_birth_y(panels, f + 1);
+        Rk[0] = R_contr_x(panels, f);
+        Rk[1] = R_contr_y(panels, f);
         dL = sqrt((Ra[0] - Rb[0]) * (Ra[0] - Rb[0]) + (Ra[1] - Rb[1]) * (Ra[1] - Rb[1]));
         if ((Ro2(a, Rk) < 25 * dL * dL) && (Ro2(a, Rk) > 0.01 * dL * dL)) {
-            Norm[0] = -N_contr_x(QUANT, f);
-            Norm[1] = -N_contr_y(QUANT, f);
+            Norm[0] = -N_contr_x(panels, f);
+            Norm[1] = -N_contr_y(panels, f);
             I_0_I_3(Ra, Rb, Norm, a, dL, dd, N_OF_POINTS, RES_0, RES_3);
             II_0 += (-dd) * RES_0;
             II_3[0] -= RES_3[0];
             II_3[1] -= RES_3[1];
         }
         if (Ro2(a, Rk) < 0.01 * dL * dL) {
-            Norm[0] = -N_contr_x(QUANT, f);
-            Norm[1] = -N_contr_y(QUANT, f);
+
+            Norm[0] = -N_contr_x(panels, f);
+            Norm[1] = -N_contr_y(panels, f);
             II_0 = M_PI * dd * dd;
             II_3[0] = 2 * Norm[0] * dd * (1 - exp(-dL / (2 * dd)));
             II_3[0] = 2 * Norm[1] * dd * (1 - exp(-dL / (2 * dd)));
@@ -211,7 +217,8 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
     V[i].v[0] += nu * II_3[0] / II_0;
     V[i].v[1] += nu * II_3[1] / II_0;
 }
-__global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_p, TVars *M, size_t n) {
+
+__global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_p, TVars *M, size_t n, tPanel *panels) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < n) {
         TVars rc[2] = RC;
@@ -226,19 +233,23 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
             M[i] = pos[i].g * Ro2(pos[i].r, rc);
         }
 	    __syncthreads;
-	    pos[i].r[0] += V[i].v[0] * dt;
-        pos[i].r[1] += V[i].v[1] * dt;
-	    TVctr Zero  = {0, 0};
-	    if ((pos[i].g != 0) && (Ro2(pos[i].r, Zero) < R * R)) {
-            F_p[i].v[0] -= pos[i].g * (-pos[i].r[1]);
-            F_p[i].v[1] -= pos[i].g * ( pos[i].r[0]);
-            M[i] -= pos[i].g * Ro2(pos[i].r, rc);
+
+		TVctr r_new = {pos[i].r[0] + V[i].v[0] * dt,pos[i].r[1] + V[i].v[1] * dt};
+//	    TVctr Zero  = {0, 0};
+		int hitpan = 0;
+	    if ((pos[i].g != 0) && (hitting(panels, r_new, pos[i].r,&hitpan))) {
+            F_p[i].v[0] -= pos[i].g * (-panels[hitpan].contr[1]);
+            F_p[i].v[1] -= pos[i].g * ( panels[hitpan].contr[0]);
+            M[i] -= pos[i].g * Ro2(panels[hitpan].contr, rc);
 		    pos[i].r[0] =  2e+5;
 		    pos[i].r[1] =  2e+5;
 		    d_g = pos[i].g;
 //		    d_g_Dev[i] = pos[i].g;
 		    pos[i].g = 0;
-	    }
+		}
+		pos[i].r[0] += V[i].v[0] * dt;
+		pos[i].r[1] += V[i].v[1] * dt;
+
 	    if ((pos[i].g != 0) && ((pos[i].r[0] > COUNT_AREA) || (fabs(pos[i].r[1]) > 10))) {
 		    pos[i].r[0]= -2.0e+5; 
 		    pos[i].r[1]= -2.0e+5; 
@@ -311,6 +322,8 @@ __global__ void collapse_Kernel(Vortex *pos, int *COL, size_t n) {
 		}
 	}
 }
+
+/*
 __device__ __host__ TVars R_birth_x(size_t n, size_t j) {
     double arg=(double)(j*2*M_PI/n);
     return R*cos(arg);
@@ -335,6 +348,26 @@ __device__ __host__ TVars N_contr_y(size_t n, size_t i) {
     double arg=(double)((i+0.5)*2*M_PI/n);
     return sin(arg);
 }
+*/
+__device__ __host__ TVars R_birth_x(tPanel *panel, size_t j) {
+    return panel[j].birth[0];
+}
+__device__ __host__ TVars R_birth_y(tPanel *panel, size_t j) {
+    return panel[j].birth[1];
+}
+__device__ __host__ TVars R_contr_x(tPanel *panel, size_t j) {
+    return panel[j].contr[0];
+}
+__device__ __host__ TVars R_contr_y(tPanel *panel, size_t j) {
+    return panel[j].contr[1];
+}
+__device__ __host__ TVars N_contr_x(tPanel *panel, size_t j) {
+	return -panel[j].norm[0];
+}
+__device__ __host__ TVars N_contr_y(tPanel *panel, size_t j) {
+    return -panel[j].norm[1];
+}
+
 __device__ __host__ TVars Ro2(TVctr a, TVctr b) { 
 	TVars x;
 	x = (a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]);
@@ -361,3 +394,86 @@ __device__ void I_0_I_3(TVctr &Ra, TVctr &Rb, TVctr &Norm, TVctr &Rj, TVars &dL,
         RES_3[1] += Norm[1] * exp(-sqrt(Eta[0] * Eta[0] + Eta[1] * Eta[1])) * delt;
     }
 }
+
+
+//------------------------------------------------------
+//-----------------Контроль протыкания------------------
+// Вход:  Panel    - контролируемый профиль
+//        a[]    - конечное положение
+//        b[]    - начальное положение
+// Выход: return - признак протыкания
+//		  hitpan - номер панели, которая пересекается
+//------------------------------------------------------
+__device__ bool hitting(tPanel *Panel, double* a, double* b, int* hitpan) {
+	const double porog_r=1e-12;
+	
+	double x1=a[0];//конечное положение
+	double y1=a[1];
+	double x2=b[0];//начальное положение
+	double y2=b[1];
+	double minDist=25.0; //расстояние до пробиваемой панели
+	int minN=-1;          //номер пробиваемой панели
+  
+	bool hit=true; //по умолчанию устанавливаем пробивание
+    
+	//if ( ((x1<Profile[prf].low_left[0]) && (x2<Profile[prf].low_left[0])) ||   <-- Было
+	//     ((x1>Profile[prf].up_right[0]) && (x2>Profile[prf].up_right[0])) ||
+	//     ((y1<Profile[prf].low_left[1]) && (y2<Profile[prf].low_left[1])) ||
+	//     ((y1>Profile[prf].up_right[1]) && (y2>Profile[prf].up_right[1])) ) hit=false;
+
+	//если вихрь вне габ. прямоугольника - возвращаем false
+	hit = !( ((x1<-1) && (x2<-1)) ||   
+			 ((x1>1) && (x2>1)) ||
+			 ((y1<-1) && (y2<-1)) ||
+			 ((y1>1) && (y2>1))   );
+  
+	//если внутри габ. прямоугольника - проводим контроль
+	if (hit)
+	{
+		hit=false;
+        //Определение прямой: Ax+By+D=0 - перемещение вихря
+        double A=y2-y1;
+        double B=x1-x2;
+        double D=y1*x2-x1*y2;
+        double A1, B1, D1;
+        //Проверка на пересечение
+        double r0=0, r1=0, r2=0, r3=0;
+        bool hitt=false;
+        for(int i=0; i<QUANT; ++i)
+		{ 
+			
+			r0=A*Panel[i].left[0] + B*Panel[i].left[1] + D;
+            r1=A*Panel[i].right[0] + B*Panel[i].right[1] + D;
+			if (fabs(r0)<porog_r) r0=0.0;
+			if (fabs(r1)<porog_r) r1=0.0;
+            hitt=false;
+            if (r0*r1<=0) 
+				hitt=true;
+            if (hitt)
+            {
+				A1=Panel[i].right[1]-Panel[i].left[1]; //Определение прямой:A1x+B1y+D1=0 -панель
+                B1=Panel[i].left[0]-Panel[i].right[0];
+                D1=Panel[i].left[1]*Panel[i].right[0]-Panel[i].left[0]*Panel[i].right[1];
+				r2=A1*x1+B1*y1+D1;
+                r3=A1*x2+B1*y2+D1;
+                if (fabs(r2)<porog_r) r2=0.0;
+			    if (fabs(r3)<porog_r) r3=0.0;
+				
+				if (r2*r3<=0)
+				{
+					hit=true;// пробила!
+                    double d2=(x2-(B*D1-D*B1)/(A*B1-B*A1))*(x2-(B*D1-D*B1)/(A*B1-B*A1))+(y2-(A1*D-D1*A)/(A*B1-B*A1))*(y2-(A1*D-D1*A)/(A*B1-B*A1)); 
+					if (d2<minDist) 
+					{
+						minDist=d2;
+						minN=i;
+					}//if d2
+				}//if r2*r3
+			}//if hitt                              
+		}//for i=0;i<Profile[prf].n
+	}; //if hit
+
+	hitpan[0]=minN;
+	return hit;
+	
+}//hitting

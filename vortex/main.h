@@ -3,6 +3,8 @@
 //#include "definitions.h"
 #include "unita.h"
 
+#include <string>
+
 
 const TVars TVarsZero = 0.0;                    // для обнуления переменных в памяти GPU
 TVars       *M = NULL;                          // "матрица формы" (host)
@@ -29,8 +31,18 @@ TVctr       V_inf_host = VINF;                  // вектор скорости потока (host)
 int         sv = SAVING_STEP;                   // шаг сохранения
 TVars       nu = VISCOSITY;                     // коэффициент вязкости
 
+tPanel		*panels_host = NULL;				// 
+tPanel		*panels_device = NULL;				// 
+
+
 // освобождение памяти
 void mem_clear();
 // вывод результата в файл
 void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step);
+
+// вывод сил в файл
 void save_forces(PVortex F_p, TVars M, int step);
+
+// загрузка профиля из файла
+void load_profile(tPanel *&panels, size_t &p);
+

@@ -1,6 +1,6 @@
 #include "unit_1.cuh"
 
-TVars   *matr_creation(size_t s) {
+TVars   *matr_creation(tPanel *panels, size_t s) {
     double rash = 0.0;
     size_t birth = 0;
     rash = (double)(s) / BLOCK_SIZE;
@@ -35,13 +35,13 @@ TVars   *matr_creation(size_t s) {
     TVctr N = {0.0, 0.0};
     TVctr b = {0.0, 0.0};
     for (size_t i = 0; i < s; ++i) { 
-        a[0] = R_contr_x(s,i);
-        a[1] = R_contr_y(s,i);
-        N[0] = N_contr_x(s,i);
-        N[1] = N_contr_y(s,i);
+        a[0] = R_contr_x(panels, i);
+        a[1] = R_contr_y(panels, i);
+        N[0] = N_contr_x(panels, i);
+        N[1] = N_contr_y(panels, i);
         for (size_t j = 0;j < s; ++j) {
-            b[0] = R_birth_x(s,j);
-            b[1] = R_birth_y(s,j);
+            b[0] = R_birth_x(panels, j);
+            b[1] = R_birth_y(panels, j);
             dist2 = Ro2(a, b);
 		    dist2 = max(dist2,EPS2);
             L[i][j] = ((a[0] - b[0]) * N[1] -
@@ -387,7 +387,7 @@ int     incr_vort_quont(Vortex *&p_host, Vortex *&p_dev, PVortex *&v_host, PVort
     return 0;
 }
 int     vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_of_birth_BLOCK_S,
-                     size_t n, TVars * M_Dev, TVars *d_g) {
+                     size_t n, TVars * M_Dev, TVars *d_g, tPanel *panels) {
     using namespace std;
     cudaError_t cuerr = cudaSuccess;
     TVars *R_p = NULL;
@@ -398,14 +398,14 @@ int     vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_
     }
 	dim3 threads1 = dim3(BLOCK_SIZE);
     dim3 blocks1  = dim3(n_of_birth_BLOCK_S/BLOCK_SIZE);
-    Right_part_Kernel <<< blocks1, threads1 >>> (pos, V_infDev, n, n_of_birth_BLOCK_S, R_p);
+    Right_part_Kernel <<< blocks1, threads1 >>> (pos, V_infDev, n, n_of_birth_BLOCK_S, R_p, panels);
 	cudaDeviceSynchronize();
     cuerr = cudaGetLastError();
     if (cuerr != cudaSuccess) {
         cout << cudaGetErrorString(cuerr) << '\n';
         return 1;
     }
-	birth_Kernel<<< blocks1, threads1 >>>(pos, n, n_of_birth, n_of_birth_BLOCK_S, M_Dev, d_g, R_p);
+	birth_Kernel<<< blocks1, threads1 >>>(pos, n, n_of_birth, n_of_birth_BLOCK_S, M_Dev, d_g, R_p, panels);
 	cudaDeviceSynchronize();
     cuerr = cudaGetLastError();
     if (cuerr != cudaSuccess) {
@@ -430,7 +430,7 @@ float stop_timer(cudaEvent_t start, cudaEvent_t stop) {
 	time=time/1000;
     return time;
 }
-int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu) {
+int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
     cudaError_t cuerr = cudaSuccess;
 	cudaDeviceSynchronize();
 	dim3 threads = dim3(BLOCK_SIZE);
@@ -460,7 +460,7 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu) {
 		std::cout <<cudaGetErrorString(cuerr);
 		return 1;            
 	}//if
-	diffusion_2_Kernel <<< blocks, threads >>> (pos, s, v, d, nu);
+	diffusion_2_Kernel <<< blocks, threads >>> (pos, s, v, d, nu, panels);
 //	cuerr=cudaMemcpy (VEL  , VDev , size  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
 //	stf(j,1);
 	cudaDeviceSynchronize();
@@ -486,7 +486,7 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu) {
 	}//if
 	return 0;
 }
-int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p, TVars *M) {
+int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels) {
 	cudaError_t cuerr = cudaSuccess;
 	TVars *d_g_Dev = NULL;
 	cuerr=cudaMalloc((void**)&d_g_Dev, n * sizeof(TVars)); 
@@ -511,7 +511,7 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 //  std::cout << "D_g_before = " << d_g_h << '\n';
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(s/BLOCK_SIZE);
-	step_Kernel <<< blocks, threads >>> (pos, V, d_g_Dev, F_p_dev, M_dev, n);
+	step_Kernel <<< blocks, threads >>> (pos, V, d_g_Dev, F_p_dev, M_dev, n, panels);
     cudaDeviceSynchronize();
     cuerr=cudaGetLastError(); 
 	if (cuerr!= cudaSuccess) {               
@@ -532,7 +532,8 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 	cudaFree(d_g_Dev);
     cudaFree(F_p_dev);
     cudaFree(M_dev);
-//	cuerr=cudaMemcpy ( &d_g_h, d_g , sizeof(TVars) , cudaMemcpyDeviceToHost);
+	TVars d_g_h = 0.0;
+	cuerr=cudaMemcpy ( &d_g_h, d_g , sizeof(TVars) , cudaMemcpyDeviceToHost);
 //	std::cout << "d_g = " << d_g_h << '\n';
 
 	size_t *n_dev;
