@@ -7,12 +7,9 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
     TVars **M = NULL;
     TVars *MM = NULL;
-    MM = new TVars[(birth + 1) * (birth + 1)];
-    if (MM == NULL) return NULL;
     TVars **L = NULL;
     L = new TVars*[s + 1];
     if (L == NULL) {
-        delete[] MM;
         return NULL;
     }
     {
@@ -27,7 +24,6 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
                 delete[] L[i--];
             }
             delete[] L;
-            delete[] MM;
         }
     }
     double dist2 = 0.0;
@@ -54,14 +50,18 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
         L[i][s]=1;
     }
     L[s][s]=0;
-    save_matr(L, s+1, "L.txt");
+//    save_matr(L, s+1, "L.txt");
     M=inverse_matrix(L,s+1);
-    if (M == NULL) {
-        clear_memory(L, s+1);
-        delete[] MM;
+	clear_memory(L, s+1);
+    if (M == NULL) {    
         return NULL;
     }
-    clear_memory(L, s+1);
+	save_matr(M, s+1, "M.txt");
+	MM = new TVars[(birth + 1) * (birth + 1)];
+    if (MM == NULL) {
+		clear_memory(M, s+1);
+		return NULL;
+	}
     for (size_t i=0; i < s+1; i++) {
         for (size_t j=0; j < s+1 ; j++) {
             MM[(birth+1)*i+j]=M[i][j];
@@ -78,6 +78,63 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
     clear_memory(M, s+1);
     return MM;
 }
+
+TVars   *load_matrix(size_t &p) {
+	using namespace std;
+	ifstream infile;
+	infile.open("M.txt");
+	infile >> p;
+	p--;
+	TVars **M = NULL;
+	M = new TVars*[p + 1];
+    if (M == NULL) {
+        return NULL;
+    }
+	{
+        size_t i;
+        for(i = 0; i < p+1; i++) {
+            M[i] = NULL;
+            M[i]=new TVars[p+1];
+            if (M[i] == NULL) break;
+        }
+        if (i != p+1) {
+            while (i != 0) {
+                delete[] M[i--];
+            }
+            delete[] M;
+        }
+    }
+	for (size_t i = 0; i < p + 1; ++i) {
+		for (size_t j = 0; j < p + 1; ++j) {
+			infile >> M[i][j];
+		}
+	}
+    double rash = 0.0;
+    size_t birth = 0;
+    rash = (double)(p) / BLOCK_SIZE;
+    birth = (size_t)(BLOCK_SIZE * ceil(rash));
+    
+    TVars *MM = NULL;
+    MM = new TVars[(birth + 1) * (birth + 1)];
+    if (MM == NULL) return NULL;
+
+    for (size_t i=0; i < p+1; i++) {
+        for (size_t j=0; j < p+1 ; j++) {
+            MM[(birth+1)*i+j]=M[i][j];
+        }
+        for (size_t j=(p+1); j<(birth+1);j++) {
+            MM[(birth+1)*i+j]=0;
+        }
+    }
+    for (size_t i=p+1; i < birth+1; i++) {
+        for (size_t j=0; j<(birth+1);j++) {
+            MM[(birth+1)*i+j]=0;
+        }
+    }
+    clear_memory(M, p+1);
+    return MM;
+}
+
 int     save_matr(TVars* M, size_t size, char *name = "D.txt") {
     using namespace std;
     if (M == NULL) return 1;
@@ -97,6 +154,7 @@ int     save_matr(TVars** M, size_t size, char *name = "D.txt") {
     if (M == NULL) return 1;
     ofstream outfile;
     outfile.open(name);
+	outfile << size << '\n';
     for (size_t i = 0; i < size; ++i) {
         if (M[i] == NULL) {
             outfile.close();

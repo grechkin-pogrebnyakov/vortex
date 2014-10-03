@@ -3,6 +3,10 @@
 
 //создание "матрицы формы" и еЄ обращение
 TVars *matr_creation(tPanel *panels, size_t s);
+
+// «агрузка матрицы
+TVars   *load_matrix(size_t &p);
+
 // сохранение матрицы
 int save_matr(TVars* M, size_t size, char *name);
 // сохранение матрицы

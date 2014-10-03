@@ -17,16 +17,31 @@ int main() {
 	size_t p = 0;												// количество точек рождени€ ¬Ё
     cudaError_t cuerr;												// ошибки CUDA
     cudaDeviceReset();
-	load_profile(panels_host, p);
-    do {
-        M = matr_creation(panels_host, p);                                       // генераци€ "матрицы формы"
-        ++cnt;
-    } while (M == NULL && cnt < 10);
-    cnt = 0;
-    if (M == NULL) {
-        cout << "Matrix creation error!";
-        return 1;
-    }
+	int menu = 0;
+	cout << "1 - load profile\n2 - load matrix\n";
+	cin >> menu;
+	if (menu == 0) {
+		return 0;
+	} else if (menu == 1) {
+		cout << "load profile\n";
+		load_profile(panels_host, p);
+		do {
+	        M = matr_creation(panels_host, p);                                       // генераци€ "матрицы формы"
+			++cnt;
+		} while (M == NULL && cnt < 10);
+		cnt = 0;
+		if (M == NULL) {
+	        cout << "Matrix creation error!";
+			return 1;
+		}
+	} else if (menu == 2) {
+		cout << "load matrix\n";
+		M = load_matrix(p);
+		if (M == NULL) {
+			cout << "Matrix loading error!";
+			return 1;
+		}
+	}
 //	n=new size_t;
 	n = 0;															// количество ¬Ё
 	size = 0;                                                       // размер массива ¬Ё
@@ -44,7 +59,7 @@ int main() {
 
 //	d=new TVars[size];												// характерное рассто€ние до 3-х ближайших ¬Ё (host)
 */
-	save_matr(M, birth + 1, "M.txt");
+//	save_matr(M, birth + 1, "M.txt");
     F_p_host.v[0] = 0.0;
     F_p_host.v[1] = 0.0;
     // выделение пам€ти и копирование на device
