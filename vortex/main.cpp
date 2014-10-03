@@ -17,14 +17,14 @@ int main() {
 	size_t p = 0;												// количество точек рождени€ ¬Ё
     cudaError_t cuerr;												// ошибки CUDA
     cudaDeviceReset();
+    load_profile(panels_host, p);
 	int menu = 0;
-	cout << "1 - load profile\n2 - load matrix\n";
+	cout << "1 - generate matrix\n2 - load matrix\n";
 	cin >> menu;
 	if (menu == 0) {
 		return 0;
 	} else if (menu == 1) {
-		cout << "load profile\n";
-		load_profile(panels_host, p);
+		cout << "generate matrix\n";
 		do {
 	        M = matr_creation(panels_host, p);                                       // генераци€ "матрицы формы"
 			++cnt;
