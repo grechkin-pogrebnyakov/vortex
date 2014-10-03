@@ -20,8 +20,8 @@
 #define EPS2            (EPS * EPS)                         // квадрат радиуса ВЭ
 #define R_COL           (4.0 * EPS2 / 4.0)                  // радиус коллапса
 
-#define STEPS           (50)                               // количество шагов по времени
-#define SAVING_STEP     (1)                                 // шаг сохранения
+#define STEPS           (5000)                               // количество шагов по времени
+#define SAVING_STEP     (100)                                 // шаг сохранения
 #define VISCOSITY       (0.001)                             // коэффициент вязкости
 #define N_OF_POINTS     (20.0)                              // число разбиений панели при вычислении интеграла
 #define COUNT_AREA      (10.0)                              // граница отрисовки
