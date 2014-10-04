@@ -21,6 +21,7 @@ int main() {
 	int menu = 0;
 	cout << "1 - generate matrix\n2 - load matrix\n";
 	cin >> menu;
+    cin.get();
 	if (menu == 0) {
 		return 0;
 	} else if (menu == 1) {

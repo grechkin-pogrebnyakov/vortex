@@ -50,7 +50,7 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
         L[i][s]=1;
     }
     L[s][s]=0;
-//    save_matr(L, s+1, "L.txt");
+    save_matr(L, s+1, "L.txt");
     M=inverse_matrix(L,s+1);
 	clear_memory(L, s+1);
     if (M == NULL) {    
