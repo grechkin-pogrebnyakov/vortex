@@ -31,16 +31,22 @@ int main() {
 		} while (M == NULL && cnt < 10);
 		cnt = 0;
 		if (M == NULL) {
-	        cout << "Matrix creation error!";
+	        cout << "Matrix creation error!\n";
+            cin.get();
 			return 1;
-		}
+		} else {
+            cout << "Matrix created!\n";
+        }
 	} else if (menu == 2) {
 		cout << "load matrix\n";
 		M = load_matrix(p);
 		if (M == NULL) {
-			cout << "Matrix loading error!";
+			cout << "Matrix loading error!\n";
+            cin.get();
 			return 1;
-		}
+		} else {
+            cout << "Matrix loaded!\n";
+        }
 	}
 //	n=new size_t;
 	n = 0;															// количество ВЭ
