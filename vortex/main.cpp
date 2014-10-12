@@ -55,6 +55,21 @@ int main() {
 	Psp.eps = 0.008;                                                // 
 	rash = (double)(p) / BLOCK_SIZE;
 	birth = (size_t)(BLOCK_SIZE * ceil(rash));
+
+//-----------------------------------------------------------------------------------------------------------------------------
+    // Вычисление скоростей при x = 0.35
+    Contr_points_host = new PVortex[500];
+    for (int i = 0; i < 500; ++i) {
+        Contr_points_host[i].v[1] = 0.021 + 0.002 * i;
+        Contr_points_host[i].v[0] = 1.0;
+    }
+
+    V_contr_host = new PVortex[500];
+    cuerr=cudaMalloc((void**)&V_contr_device, 500 * sizeof(PVortex));
+    cuerr=cudaMalloc((void**)&Contr_points_device, 500 * sizeof(PVortex));
+    cuerr=cudaMemcpy(Contr_points_device, Contr_points_host, 500 * sizeof(PVortex), cudaMemcpyHostToDevice);
+
+//-----------------------------------------------------------------------------------------------------------------------------
 /*
 	TVars rrr=0;
 	TVctr rrr1={0,0};
@@ -152,6 +167,46 @@ int main() {
             }// if cuerr
 //			cuerr=cudaMemcpy ( POS , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
             cout << "Output " << j << '\n';
+
+
+//////////////////////////////////////////////////////////////////////////
+
+            velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_device);
+
+            cuerr=cudaMemcpy(V_contr_host, V_contr_device, 500 * sizeof(PVortex), cudaMemcpyDeviceToHost);
+
+            char *fname1;
+            fname1 = "Vel";
+            char *fname2;
+            fname2 = ".txt";
+            char *fzero;
+            fzero = "0";
+            char fstep[6];
+            char fname[15];
+            fname[0] = '\0';
+            itoaxx(j,fstep,10);
+            strcat(fname,fname1);
+            if (j<10) strcat(fname,fzero);
+            if (j<100) strcat(fname,fzero);
+            if (j<1000) strcat(fname,fzero);
+            if (j<10000) strcat(fname,fzero);
+            //	if (_step<100000) strcat(fname,fzero);
+            strcat(fname,fstep);
+            strcat(fname,fname2);
+            ofstream outfile;
+            outfile.open(fname);
+            // Сохранен­ие числа вихрей в пелене
+            outfile << (100) << endl;
+            for (size_t i = 0; i < (500); ++i) {
+                outfile<<(int)(i)<<" "<<(double)(Contr_points_host[i].v[0])<<" "<<(double)(Contr_points_host[i].v[1])<<" "<<(double)(V_contr_host[i].v[0])<<" "<<(double)(V_contr_host[i].v[1])<<endl;
+                //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
+                // нули пишутся для совместимо­сти с трехмерной­ программой­ и обработчик­ами ConMDV, ConMDV-p и Construct
+            }//for i
+            outfile.close();
+
+
+//////////////////////////////////////////////////////////////////////////
+
 			save_to_file(POS_host, n, Psp, j);
         }// if sv
 

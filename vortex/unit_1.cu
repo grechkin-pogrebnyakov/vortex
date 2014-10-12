@@ -649,3 +649,19 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 	}
 	return 0;
 }
+
+
+
+int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V) {
+    cudaError_t cuerr;
+    dim3 threads = dim3(50);
+    dim3 blocks  = dim3(10);
+    velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V);
+    cudaDeviceSynchronize();    
+    cuerr = cudaGetLastError();    
+    if (cuerr != cudaSuccess) {        
+        std::cout << cudaGetErrorString(cuerr) << '\n';
+        return 1;
+    }
+    return 0;
+}

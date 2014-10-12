@@ -78,3 +78,6 @@ __device__ __host__ TVars Ro2(TVctr a, TVctr b);
 __device__ void I_0_I_3(TVctr &Ra, TVctr &Rb, TVctr &Norm, TVctr &Rj, TVars &dL, TVars &d, size_t N, TVars &RES_0, TVctr &RES_3);
 
 __device__ bool hitting(tPanel *Panel, double* a, double* b, int* hitpan);
+
+// вычисление скоростей в контрольных точках
+__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V);

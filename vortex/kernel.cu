@@ -477,3 +477,39 @@ __device__ bool hitting(tPanel *Panel, double* a, double* b, int* hitpan) {
 	return hit;
 	
 }//hitting
+
+
+__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V) {
+    int i= blockIdx.x * blockDim.x + threadIdx.x;
+    TVctr y = {0.0, 0.0};
+//	TVars dist2;
+    TVars mnog = 0.0;
+    TVars dist2 = 0.0;
+    // координаты расчётной точки
+    TVctr a = {0.0, 0.0};
+    // координаты воздействующей точки
+    __shared__ TVctr b_sh [BLOCK_SIZE];
+    // интенсивность воздействующей точки
+    __shared__ TVars g [BLOCK_SIZE];
+    a[0]=Contr_points[i].v[0];
+    a[1]=Contr_points[i].v[1];
+    for (int f = 0 ; f < n ; f += BLOCK_SIZE) {
+        b_sh[threadIdx.x][0]=pos[threadIdx.x+f].r[0];
+        b_sh[threadIdx.x][1]=pos[threadIdx.x+f].r[1];
+        g[threadIdx.x]=pos[threadIdx.x+f].g;
+        __syncthreads();
+        for (int j = 0 ; j < BLOCK_SIZE ; ++j) {		
+            dist2= Ro2(a, b_sh[j]);
+	//		if (dist2 < EPS2) dist2=EPS2;
+            dist2 = max(dist2, EPS2);
+            mnog=g[j] / dist2;
+            y[1] +=  mnog * (a[0] - b_sh[j][0]);	
+            y[0] += -mnog * (a[1] - b_sh[j][1]);
+        }//j
+        __syncthreads();
+    }//f
+    V[i].v[0] = y[0]/(2*M_PI) + (*V_inf)[0];
+    V[i].v[1] = y[1]/(2*M_PI) + (*V_inf)[1];
+//	V[i].v[k] =  (*V_inf)[k];
+    __syncthreads(); 
+}

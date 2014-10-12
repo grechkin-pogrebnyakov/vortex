@@ -30,6 +30,11 @@ int         st = STEPS;                         // количество шагов по времени
 TVctr       V_inf_host = VINF;                  // вектор скорости потока (host)
 int         sv = SAVING_STEP;                   // шаг сохранения
 TVars       nu = VISCOSITY;                     // коэффициент вязкости
+PVortex     *V_contr_device = NULL;             // скорости в контрольных точках (device)
+PVortex     *V_contr_host = NULL;               // скорости в контрольных точках (host)
+PVortex     *Contr_points_device = NULL;        // контрольные точки для скорости (device)
+PVortex     *Contr_points_host = NULL;          // контрольные точки для скорости (host)
+
 
 tPanel		*panels_host = NULL;				// 
 tPanel		*panels_device = NULL;				// 
