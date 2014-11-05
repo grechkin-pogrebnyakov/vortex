@@ -10,7 +10,7 @@ vortex/vortex.vcxproj
 vortex.sln
 vortex/vortex.vcxproj.filters
 vortex/bmp/
-vortex/aaa.nb
+vortex/*.nb
 
 # User-specific files
 *.suo

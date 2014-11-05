@@ -60,8 +60,8 @@ int main() {
     // ¬ычисление скоростей при x = 0.35
     Contr_points_host = new PVortex[500];
     for (int i = 0; i < 500; ++i) {
-        Contr_points_host[i].v[1] = 0.021 + 0.002 * i;
-        Contr_points_host[i].v[0] = 1.0;
+        Contr_points_host[i].v[1] = 0.002 * i;
+        Contr_points_host[i].v[0] = 0.35;
     }
 
     V_contr_host = new PVortex[500];
@@ -120,6 +120,7 @@ int main() {
 //------------------------------------------------------------------------------------------
     // цикл шагов выполнени€ расчЄтов
 	for (int j = 0; j < st; j++) {
+        cout << j << ' ';
         // количество ¬Ё на текущем шаге, увеличенное до кратности BLOCK_SIZE
         size_t s = 0;
         double rashirenie = 0;
@@ -166,7 +167,7 @@ int main() {
                 return 1;
             }// if cuerr
 //			cuerr=cudaMemcpy ( POS , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-            cout << "Output " << j << '\n';
+            cout << "\nOutput " << j << '\n';
 
 
 //////////////////////////////////////////////////////////////////////////
