@@ -118,9 +118,16 @@ int main() {
 	cudaEvent_t start = 0, stop = 0;	    
 	start_timer(start, stop);
 //------------------------------------------------------------------------------------------
+    V_inf_host[0] = 0.0;
+    cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
+    double d_V_inf = 1.0/100;
     // цикл шагов выполнени€ расчЄтов
 	for (int j = 0; j < st; j++) {
-        cout << j << ' ';
+        if (j < 100) {
+            V_inf_host[0] += d_V_inf;
+            cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
+        }
+        //cout << j << ' ';
         // количество ¬Ё на текущем шаге, увеличенное до кратности BLOCK_SIZE
         size_t s = 0;
         double rashirenie = 0;
@@ -158,6 +165,7 @@ int main() {
         // вывод данных в файл
 		if (j%sv == 0) {
 //			cuerr=cudaMemcpy ( d , d_Dev , size  * sizeof(TVars) , cudaMemcpyDeviceToHost);
+            cudaDeviceSynchronize();
 			cuerr=cudaMemcpy(POS_host, POS_device, n  * sizeof(Vortex), cudaMemcpyDeviceToHost);
             if (cuerr != cudaSuccess) {
                 cout << cudaGetErrorString(cuerr) << '\n';

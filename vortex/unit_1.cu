@@ -637,6 +637,7 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 //		cout<<sss<<endl;
 //		if (sss==0) cc=10;
 //		delete[] COLD;
+        cudaDeviceSynchronize();
 		collapse_Kernel <<< dim3(1), dim3(1) >>> (pos, COL, n);
 		cudaFree(COL);
 		cudaMalloc( (void**)&n_dev ,  sizeof(size_t));

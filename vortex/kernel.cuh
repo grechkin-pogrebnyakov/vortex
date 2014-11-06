@@ -59,6 +59,18 @@ __device__ __host__ TVars R_birth_x(tPanel *panel, size_t j);
 // y - координата точки рождения ВЭ
 __device__ __host__ TVars R_birth_y(tPanel *panel, size_t j);
 
+// x - координата точки рождения ВЭ
+__device__ __host__ TVars R_left_x(tPanel *panel, size_t j);
+
+// y - координата точки рождения ВЭ
+__device__ __host__ TVars R_left_y(tPanel *panel, size_t j);
+
+// x - координата точки рождения ВЭ
+__device__ __host__ TVars R_right_x(tPanel *panel, size_t j);
+
+// y - координата точки рождения ВЭ
+__device__ __host__ TVars R_right_y(tPanel *panel, size_t j);
+
 // x - координата точки контроля ВЭ
 __device__ __host__ TVars R_contr_x(tPanel *panel, size_t j);
 

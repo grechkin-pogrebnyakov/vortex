@@ -188,13 +188,14 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
     //	TVars denomenator = 2 * M_PI * dd; // знаменатель
     for (int f = 0; f < QUANT; ++f) {
 
-        Ra[0] = R_birth_x(panels, f);
-        Ra[1] = R_birth_y(panels, f);
-        Rb[0] = R_birth_x(panels, f + 1);
-        Rb[1] = R_birth_y(panels, f + 1);
+        Ra[0] = R_left_x(panels, f);
+        Ra[1] = R_left_y(panels, f);
+        Rb[0] = R_right_x(panels, f);
+        Rb[1] = R_right_y(panels, f);
         Rk[0] = R_contr_x(panels, f);
         Rk[1] = R_contr_y(panels, f);
-        dL = sqrt((Ra[0] - Rb[0]) * (Ra[0] - Rb[0]) + (Ra[1] - Rb[1]) * (Ra[1] - Rb[1]));
+        //dL = sqrt((Ra[0] - Rb[0]) * (Ra[0] - Rb[0]) + (Ra[1] - Rb[1]) * (Ra[1] - Rb[1]));
+        dL = panels[f].length;
         if ((Ro2(a, Rk) < 25 * dL * dL) && (Ro2(a, Rk) > 0.01 * dL * dL)) {
             Norm[0] = -N_contr_x(panels, f);
             Norm[1] = -N_contr_y(panels, f);
@@ -202,8 +203,7 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
             II_0 += (-dd) * RES_0;
             II_3[0] -= RES_3[0];
             II_3[1] -= RES_3[1];
-        }
-        if (Ro2(a, Rk) < 0.01 * dL * dL) {
+        } else if (Ro2(a, Rk) <= 0.01 * dL * dL) {
 
             Norm[0] = -N_contr_x(panels, f);
             Norm[1] = -N_contr_y(panels, f);
@@ -247,6 +247,7 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 //		    d_g_Dev[i] = pos[i].g;
 		    pos[i].g = 0;
 		}
+
 		pos[i].r[0] += V[i].v[0] * dt;
 		pos[i].r[1] += V[i].v[1] * dt;
 
@@ -354,6 +355,18 @@ __device__ __host__ TVars R_birth_x(tPanel *panel, size_t j) {
 }
 __device__ __host__ TVars R_birth_y(tPanel *panel, size_t j) {
     return panel[j].birth[1];
+}
+__device__ __host__ TVars R_left_x(tPanel *panel, size_t j) {
+    return panel[j].left[0];
+}
+__device__ __host__ TVars R_left_y(tPanel *panel, size_t j) {
+    return panel[j].left[1];
+}
+__device__ __host__ TVars R_right_x(tPanel *panel, size_t j) {
+    return panel[j].right[0];
+}
+__device__ __host__ TVars R_right_y(tPanel *panel, size_t j) {
+    return panel[j].right[1];
 }
 __device__ __host__ TVars R_contr_x(tPanel *panel, size_t j) {
     return panel[j].contr[0];
