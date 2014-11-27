@@ -470,6 +470,7 @@ int     vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_
         cout << cudaGetErrorString(cuerr) << '\n';
         return 1;
     }
+    cudaFree(R_p);
     return 0;
 }
 void start_timer(cudaEvent_t &start, cudaEvent_t &stop) {
@@ -594,7 +595,7 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 	cuerr=cudaMemcpy ( &d_g_h, d_g , sizeof(TVars) , cudaMemcpyDeviceToHost);
 //	std::cout << "d_g = " << d_g_h << '\n';
 
-	size_t *n_dev;
+	size_t *n_dev = NULL;
 	cuerr = cudaMalloc( (void**)&n_dev ,  sizeof(size_t)); 
 	if (cuerr!= cudaSuccess) {               
 		std::cout <<cudaGetErrorString(cuerr) << '\n';
