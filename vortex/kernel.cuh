@@ -1,3 +1,6 @@
+#ifndef KERNEL_CUH_
+#define KERNEL_CUH_
+
 #include "definitions.h"
 
 // CUDA яƒ–ќ обнуление ¬Ё, начина€ с элемента s, при этом у них случайные координаты
@@ -93,3 +96,5 @@ __device__ bool hitting(tPanel *Panel, double* a, double* b, int* hitpan);
 
 // вычисление скоростей в контрольных точках
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V);
+
+#endif

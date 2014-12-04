@@ -1,3 +1,6 @@
+#ifndef MAIN_H_
+#define MAIN_H_
+
 //#include "kernel.cuh"
 #include "unit_1.cuh"
 //#include "definitions.h"
@@ -51,3 +54,4 @@ void save_forces(PVortex F_p, TVars M, int step);
 // загрузка профиля из файла
 void load_profile(tPanel *&panels, size_t &p);
 
+#endif

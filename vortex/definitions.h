@@ -1,5 +1,7 @@
+#ifndef DEFINITIONS_H_
+#define DEFINITIONS_H_
+
 #define _USE_MATH_DEFINES
-#pragma once
 #include <math.h>
 #include <iostream>
 #include <fstream>
@@ -93,3 +95,5 @@ struct tPanel {
 		tang[1] = 0.0;
 	}
 };// panel
+
+#endif

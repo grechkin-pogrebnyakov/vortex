@@ -1,3 +1,6 @@
+#ifndef UNIT_1_CUH_
+#define UNIT_1_CUH_
+
 #include "kernel.cuh"
 //#include "unita.h"
 
@@ -37,3 +40,5 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 
 //
 int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V);
+
+#endif
