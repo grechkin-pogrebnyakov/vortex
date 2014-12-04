@@ -1,4 +1,6 @@
 #include "kernel.cuh"
+#include "device_launch_parameters.h"
+#include "math_functions.h"
 
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
