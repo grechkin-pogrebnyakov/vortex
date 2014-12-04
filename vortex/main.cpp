@@ -114,9 +114,10 @@ int main() {
         system("pause");
 		return 1;
 	}
-
+    float creation_time = 0.0;
+    float speed_time = 0.0;
+    float step_time = 0.0;
 	cudaEvent_t start = 0, stop = 0;	    
-	start_timer(start, stop);
 //------------------------------------------------------------------------------------------
     V_inf_host[0] = 0.0;
     cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
@@ -148,7 +149,8 @@ int main() {
 //	    save_to_file_size(2*j);
 
         // "рождение" ВЭ
-
+        start = 0; stop = 0;
+        start_timer(start, stop);
 		err = vort_creation(POS_device, V_inf_device, p, birth, n, M_device, d_g_device, panels_device);
 
         if (err != 0) {
@@ -158,7 +160,7 @@ int main() {
             return 1;
         }// if err
 		n += p;
-
+        creation_time += stop_timer(start, stop);
 //	cuerr=cudaMemcpy ( POS , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
 //	save_to_file_size(2*j+1);
 
@@ -267,7 +269,8 @@ int main() {
 //		if ((j%100 == 0) && (j%1000 != 0)) cout<<"j= "<<j<<endl;
 
         // расчёт скоростей
-
+        start = 0; stop = 0;
+        start_timer(start, stop);
 		err = Speed(POS_device, V_inf_device, s, VEL_device, d_device, nu, panels_device);									
 		if (err != 0) {
             cout << "Speed evaluation ERROR!" << endl;
@@ -275,6 +278,7 @@ int main() {
 			cin.get();
 			return 1;
 		}
+        speed_time += stop_timer(start, stop);
 /*
 		if (j==0)																		//вывод скоростей в файл
 		{
@@ -290,7 +294,8 @@ int main() {
         cuerr=cudaMemcpy (d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice);
         cuerr=cudaMemcpy (Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice);
         // перемещение ВЭ
-
+        start = 0; stop = 0;
+        start_timer(start, stop);
 		err = Step(POS_device, VEL_device, n, s, d_g_device, F_p_device , Momentum_device, panels_device);
 		if (err != 0) {
             cout << "Moving ERROR!" << endl;
@@ -298,7 +303,8 @@ int main() {
 			cin.get();
 			return 1;
 		}
-        cout << n << '\n';
+        step_time += stop_timer(start, stop);
+//        cout << n << '\n';
 /*
 		if (j==0)																		//вывод в файл ВЭ после перемещения
 		{
@@ -310,8 +316,9 @@ int main() {
 */
 	}//j
 //------------------------------------------------------------------------------------------
-	float time = stop_timer(start, stop);
-	cout << "Computing time = "<< time << " sec\n";
+//	float time = stop_timer(start, stop);
+//	cout << "Computing time = "<< time << " sec\n";
+    cout << "Creation time = " << creation_time << " speed time = " << speed_time << " step time = " << step_time << '\n';
 	cuerr=cudaMemcpy ( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
     cuerr=cudaMemcpy(&F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost);
     cuerr=cudaMemcpy(&Momentum_host, Momentum_device, sizeof(PVortex), cudaMemcpyDeviceToHost);
