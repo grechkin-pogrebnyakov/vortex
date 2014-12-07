@@ -27,11 +27,17 @@ __global__ void summ_Kernel(TVars *d_g_Dev, TVars *d_g, PVortex *F_p_dev, PVorte
 // CUDA яƒ–ќ сортировка ¬Ё
 __global__ void sort_Kernel(Vortex *pos, size_t *s);
 
-// CUDA яƒ–ќ поиск элементов дл€ коллапса
-__global__ void setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL);
+// CUDA яƒ–ќ поиск элементов одного знака дл€ коллапса
+__global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL);
 
-// CUDA яƒ–ќ коллапс
-__global__ void collapse_Kernel(Vortex *pos, int *COL, size_t n);
+// CUDA яƒ–ќ поиск элементов разных знаков дл€ коллапса
+__global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL);
+
+// CUDA яƒ–ќ коллапс ¬Ё одного знака
+__global__ void first_collapse_Kernel(Vortex *pos, int *COL, size_t n);
+
+// CUDA яƒ–ќ коллапс ¬Ё разных знаков
+__global__ void second_collapse_Kernel(Vortex *pos, int *COL, size_t n);
 
 // CUDA яƒ–ќ расчЄт правых частей дл€ рождени€
 __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels);

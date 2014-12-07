@@ -1,5 +1,6 @@
 #include "kernel.cuh"
 #include "device_launch_parameters.h"
+#include "device_functions.h"
 #include "math_functions.h"
 
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s ) {
@@ -294,34 +295,76 @@ __global__ void sort_Kernel(Vortex *pos, size_t *s) {
     }
 	(*s)=n;
 }
-__global__ void setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
+__global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i<n) {
 		Setx[i] = floor((pos[i].r[0]+2)/HX);
 		Sety[i] = floor((pos[i].r[1]+10)/HY);
 		COL[i] = -1;
-	}
-	__syncthreads();
-	for (int j = (i+1); j < n; j++ ) {
-		if ((abs(Setx[i] - Setx[j]) < 2) && (abs(Sety[i] - Sety[j]) < 2)) {
-			if (Ro2(pos[i].r,pos[j].r) < R_COL) {
+
+		__syncthreads();
+
+		//	for (int j = (i+1); j < n; j++ ) {
+		for (int j = 0; j < n; ++j) {
+			if ((abs(Setx[i] - Setx[j]) < 2) && (abs(Sety[i] - Sety[j]) < 2) && (pos[i].g * pos[j].g > 0) &&
+				(Ro2(pos[i].r,pos[j].r) < R_COL_1) && (j != i) && (fabs(pos[i].g + pos[j].g) < MAX_VE_G)) {
 				COL[i] = j;
-				j = n + 5;
+				//j = n + 5;
+				break;
 			}
-        }
+		}
 	}
 }
-__global__ void collapse_Kernel(Vortex *pos, int *COL, size_t n) {
-	for (int i = 0; i < n; i++)
-	{
-		if ((pos[i].g != 0) && (COL[i] > (-1))) {
-			for(int k = 0; k < 2; ++k)
-				pos[i].r[k] = (pos[i].r[k] * fabs(pos[i].g) + pos[COL[i]].r[k] * fabs(pos[COL[i]].g)) /
-                              (fabs(pos[i].g) + fabs(pos[COL[i]].g));
-				pos[i].g=pos[i].g+pos[COL[i]].g;
-				pos[COL[i]].g = 0;
-				pos[COL[i]].r[0] = (double)(1e+10);
-				pos[COL[i]].r[1] = (double)(1e+10);
+
+__global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i<n) {
+		Setx[i] = floor((pos[i].r[0]+2)/HX);
+		Sety[i] = floor((pos[i].r[1]+10)/HY);
+		COL[i] = -1;
+
+		__syncthreads();
+
+		//	for (int j = (i+1); j < n; j++ ) {
+		for (int j = 0; j < n; ++j) {
+			if ((abs(Setx[i] - Setx[j]) < 2) && (abs(Sety[i] - Sety[j]) < 2) &&
+				(pos[i].g * pos[j].g < 0) && (Ro2(pos[i].r,pos[j].r) < R_COL_2)) {
+					COL[i] = j;
+					//j = n + 5;
+					break;
+			}
+		}
+	}
+}
+
+__global__ void first_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
+	for (int i = 0; i < n; i++) {
+		if ((COL[i] > (-1))) {
+			int j = COL[i];
+			double new_g = pos[i].g + pos[j].g;
+			pos[i].r[0] = (pos[i].r[0] * pos[i].g + pos[j].r[0] * pos[j].g) / new_g;
+			pos[i].r[1] = (pos[i].r[1] * pos[i].g + pos[j].r[1] * pos[j].g) / new_g;
+			pos[i].g = new_g;
+			pos[j].g = 0;
+			pos[j].r[0] = (double)(1e+10);
+			pos[j].r[1] = (double)(1e+10);
+			COL[j] = -1;
+		}
+	}
+}
+
+__global__ void second_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
+	for (int i = 0; i < n; i++) {
+		if ((COL[i] > (-1))) {
+			int j = COL[i];
+			double new_g = pos[i].g + pos[j].g;
+			pos[i].r[0] = (pos[i].r[0] * fabs(pos[i].g) + pos[j].r[0] * fabs(pos[j].g)) / fabs(new_g);
+			pos[i].r[1] = (pos[i].r[1] * fabs(pos[i].g) + pos[j].r[1] * fabs(pos[j].g)) / fabs(new_g);
+			pos[i].g = new_g;
+			pos[j].g = 0;
+			pos[j].r[0] = (double)(1e+10);
+			pos[j].r[1] = (double)(1e+10);
+			COL[j] = -1;
 		}
 	}
 }

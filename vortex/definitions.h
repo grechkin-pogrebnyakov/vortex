@@ -8,7 +8,6 @@
 #include <time.h>
 #include "cuda.h"
 #include "cuda_runtime.h"
-#include <math.h>
 
 
 #define BLOCK_SIZE      (64)                                // размер блока дл€ всех вычислений на GPU, кроме рождени€ ¬Ё
@@ -20,9 +19,11 @@
 #define VINF            {1.0, 0.0}                          // скорость набегающего потока
 #define EPS             (0.0005)                            // радиус ¬Ё
 #define EPS2            (EPS * EPS)                         // квадрат радиуса ¬Ё
-#define R_COL           (4.0 * EPS2 / 9.0)                  // радиус коллапса
+#define R_COL_1         (4.0 * EPS2 / 9.0)                  // радиус коллапса дл€ ¬Ё одного знака
+#define R_COL_2			(2.0 * EPS2 / 9.0)					// радиус коллапса дл€ ¬Ё разных знаков
+#define MAX_VE_G		(1e-1)								// максимальна€ интенсивность ¬Ё после коллапса
 
-#define STEPS           (10000)                            // количество шагов по времени
+#define STEPS           (10)                            // количество шагов по времени
 #define SAVING_STEP     (100)                                // шаг сохранени€
 #define VISCOSITY       (0.001)                             // коэффициент в€зкости
 #define N_OF_POINTS     (20.0)                              // число разбиений панели при вычислении интеграла

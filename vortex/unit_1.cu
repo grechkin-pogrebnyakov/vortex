@@ -627,19 +627,21 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 		cuerr=cudaMalloc (&Sety, n * sizeof( int ));
 		cuerr=cudaMalloc (&COL, n * sizeof( int ));
 		
-		setka_Kernel <<< blocks, threads >>> (pos, n, Setx, Sety, COL);
+		first_setka_Kernel <<< blocks, threads >>> (pos, n, Setx, Sety, COL);
 		cudaFree(Setx);
 		cudaFree(Sety);
-//		int *COLD;
-//		COLD= new int [(*n)];
-//		cudaMemcpy(COLD,COL,(*n)*sizeof(int), cudaMemcpyDeviceToHost);
-//		int sss=0;
-//		for(int gg=0; gg<(*n); gg++) sss+= COLD[gg]+1;
-//		cout<<sss<<endl;
-//		if (sss==0) cc=10;
-//		delete[] COLD;
+		int *COLD;
+		COLD= new int [n];
+		cudaMemcpy(COLD, COL, n * sizeof(int), cudaMemcpyDeviceToHost);
+		int sss = 0;
+		for(int gg = 0; gg < n; gg++) {
+			if (COLD[gg] >= 0) sss += 1;
+		}
+		std::cout << sss << '\n';
+		if (sss==0) cc=10;
+		delete[] COLD;
         cudaDeviceSynchronize();
-		collapse_Kernel <<< dim3(1), dim3(1) >>> (pos, COL, n);
+		first_collapse_Kernel <<< dim3(1), dim3(1) >>> (pos, COL, n);
 		cudaFree(COL);
 		cudaMalloc( (void**)&n_dev ,  sizeof(size_t));
 		cudaMemcpy(n_dev, &n, sizeof(size_t), cudaMemcpyHostToDevice);
