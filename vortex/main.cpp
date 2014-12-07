@@ -8,6 +8,7 @@
  ============================================================================
  */
 #include "main.h"
+#include "unita.h"
 
 int main() {
     using namespace std;
@@ -122,9 +123,10 @@ int main() {
     V_inf_host[0] = 0.0;
     cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
     double d_V_inf = 1.0/100;
+
     // цикл шагов выполнения расчётов
-	for (int j = 0; j < st; j++) {
-        if (j < 100) {
+	for (current_step = 0; current_step < st; current_step++) {
+        if (current_step < 100) {
             V_inf_host[0] += d_V_inf;
             cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
         }
@@ -165,7 +167,7 @@ int main() {
 //	save_to_file_size(2*j+1);
 
         // вывод данных в файл
-		if (j%sv == 0) {
+		if (current_step%sv == 0) {
 //			cuerr=cudaMemcpy ( d , d_Dev , size  * sizeof(TVars) , cudaMemcpyDeviceToHost);
             cudaDeviceSynchronize();
 			cuerr=cudaMemcpy(POS_host, POS_device, n  * sizeof(Vortex), cudaMemcpyDeviceToHost);
@@ -177,7 +179,7 @@ int main() {
                 return 1;
             }// if cuerr
 //			cuerr=cudaMemcpy ( POS , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-            cout << "\nOutput " << j << '\n';
+            cout << "\nOutput " << current_step << '\n';
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -195,12 +197,12 @@ int main() {
             char fstep[6];
             char fname[15];
             fname[0] = '\0';
-            itoaxx(j,fstep,10);
+            itoaxx(current_step,fstep,10);
             strcat(fname,fname1);
-            if (j<10) strcat(fname,fzero);
-            if (j<100) strcat(fname,fzero);
-            if (j<1000) strcat(fname,fzero);
-            if (j<10000) strcat(fname,fzero);
+            if (current_step<10) strcat(fname,fzero);
+            if (current_step<100) strcat(fname,fzero);
+            if (current_step<1000) strcat(fname,fzero);
+            if (current_step<10000) strcat(fname,fzero);
             //	if (_step<100000) strcat(fname,fzero);
             strcat(fname,fstep);
             strcat(fname,fname2);
@@ -218,7 +220,7 @@ int main() {
 
 //////////////////////////////////////////////////////////////////////////
 
-			save_to_file(POS_host, n, Psp, j);
+			save_to_file(POS_host, n, Psp, current_step);
         }// if sv
 
         cuerr=cudaMemcpy(&F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost);
@@ -237,7 +239,7 @@ int main() {
             cin.get();
             return 1;
         }// if cuerr
-        save_forces(F_p_host, Momentum_host, j);
+        save_forces(F_p_host, Momentum_host, current_step);
 /*
 			if(j==1)
 			{

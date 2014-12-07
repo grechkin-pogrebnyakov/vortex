@@ -490,13 +490,20 @@ float stop_timer(cudaEvent_t start, cudaEvent_t stop) {
     return time;
 }
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
+    extern int current_step;
     cudaError_t cuerr = cudaSuccess;
 	cudaDeviceSynchronize();
 	dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(s/BLOCK_SIZE);
+    PVortex * VEL = new PVortex[s];
+    PVortex * VELLL = new PVortex[s];
 	shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
     cudaDeviceSynchronize();
+    Vortex *POS = new Vortex[s];
+    cuerr=cudaMemcpy (POS  , pos , s  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
+    cuerr=cudaMemcpy (VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
+    save_vel_to_file(POS, VEL, s, current_step, 0);
     cuerr=cudaGetLastError(); 
 	if (cuerr != cudaSuccess) {               
 		std::cout <<cudaGetErrorString(cuerr);
@@ -511,9 +518,14 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 	diffusion_Kernel <<< blocks, threads >>> (pos, s, v, d, nu);
 //	cuerr=cudaMemcpy (POS  , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
 //	save_to_file(j);
-//	cuerr=cudaMemcpy (VEL  , VDev , size  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
-//	stf(j,0);
 	cudaDeviceSynchronize();
+	cuerr=cudaMemcpy (VELLL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
+    for (size_t sss = 0; sss < s; ++sss) {
+        VEL[sss].v[0] = VELLL[sss].v[0] - VEL[sss].v[0];
+        VEL[sss].v[1] = VELLL[sss].v[1] - VEL[sss].v[1];
+    }
+	save_vel_to_file(POS, VEL, s, current_step, 1);
+
     cuerr=cudaGetLastError(); 
 	if (cuerr != cudaSuccess) {               
 		std::cout <<cudaGetErrorString(cuerr);
@@ -523,6 +535,13 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 //	cuerr=cudaMemcpy (VEL  , VDev , size  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
 //	stf(j,1);
 	cudaDeviceSynchronize();
+    cuerr=cudaMemcpy (VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
+    for (size_t sss = 0; sss < s; ++sss) {
+        VELLL[sss].v[0] = VEL[sss].v[0] - VELLL[sss].v[0];
+        VELLL[sss].v[1] = VEL[sss].v[1] - VELLL[sss].v[1];
+    }
+    save_vel_to_file(POS, VELLL, s, current_step, 2);
+    save_vel_to_file(POS, VEL, s, current_step, 3);
 /*	
 	TVars *dd=new TVars[size];
     cudaMemcpy(dd,d,size * sizeof(TVars),cudaMemcpyDeviceToHost);
@@ -545,6 +564,41 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 	}//if
 	return 0;
 }
+
+void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int stage) {
+    using namespace std;
+    char *fname1;
+    fname1 = "velocities/Vel";
+    char *fname2;
+    fname2 = ".txt";
+    char *fzero;
+    fzero = "0";
+    char fstep[8];
+    char fname[20];
+    fname[0] = '\0';
+    char stage_str[5];
+    itoa(stage, stage_str, 10);
+    itoa(_step,fstep,10);
+    strcat(fname,fname1);
+    strcat(fname, stage_str);
+    if (_step<10) strcat(fname,fzero);
+    if (_step<100) strcat(fname,fzero);
+    if (_step<1000) strcat(fname,fzero);
+    if (_step<10000) strcat(fname,fzero);
+    //	if (_step<100000) strcat(fname,fzero);
+    strcat(fname,fstep);
+    strcat(fname,fname2);
+    ofstream outfile;
+    outfile.open(fname);
+    // Сохранен­ие числа вихрей в пелене
+    outfile << (size) << endl;
+    for (size_t i = 0; i < (size); ++i) {
+        outfile<<(int)(i)<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(VEL[i].v[0])<<" "<<(double)(VEL[i].v[1])<<endl;
+        //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
+    }//for i
+    outfile.close();
+} //save_to_file
+
 int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels) {
 	cudaError_t cuerr = cudaSuccess;
 	TVars *d_g_Dev = NULL;
@@ -637,7 +691,7 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 		for(int gg = 0; gg < n; gg++) {
 			if (COLD[gg] >= 0) sss += 1;
 		}
-		std::cout << sss << '\n';
+		std::cout << cc << ' ' << sss << '\n';
 		if (sss==0) cc=10;
 		delete[] COLD;
         cudaDeviceSynchronize();
@@ -651,6 +705,38 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 		cudaMemcpy(&n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost);
 		cudaFree(n_dev);
 	}
+    for (int cc = 0; cc < NCOL; ++cc) {
+        int *Setx = NULL;
+        int *Sety = NULL;
+        int *COL = NULL;
+        cuerr=cudaMalloc (&Setx, n * sizeof( int ));
+        cuerr=cudaMalloc (&Sety, n * sizeof( int ));
+        cuerr=cudaMalloc (&COL, n * sizeof( int ));
+
+        second_setka_Kernel <<< blocks, threads >>> (pos, n, Setx, Sety, COL);
+        cudaFree(Setx);
+        cudaFree(Sety);
+        int *COLD;
+        COLD= new int [n];
+        cudaMemcpy(COLD, COL, n * sizeof(int), cudaMemcpyDeviceToHost);
+        int sss = 0;
+        for(int gg = 0; gg < n; gg++) {
+            if (COLD[gg] >= 0) sss += 1;
+        }
+        std::cout << cc << ' ' << sss << '\n';
+        if (sss==0) cc=10;
+        delete[] COLD;
+        cudaDeviceSynchronize();
+        second_collapse_Kernel <<< dim3(1), dim3(1) >>> (pos, COL, n);
+        cudaFree(COL);
+        cudaMalloc( (void**)&n_dev ,  sizeof(size_t));
+        cudaMemcpy(n_dev, &n, sizeof(size_t), cudaMemcpyHostToDevice);
+        cudaDeviceSynchronize();
+        sort_Kernel <<< dim3(1), dim3(1) >>> (pos, n_dev);
+        cudaDeviceSynchronize();
+        cudaMemcpy(&n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost);
+        cudaFree(n_dev);
+    }
 	return 0;
 }
 

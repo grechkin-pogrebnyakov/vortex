@@ -4,11 +4,11 @@
 //#include "kernel.cuh"
 #include "unit_1.cuh"
 //#include "definitions.h"
-#include "unita.h"
+
 
 #include <string>
 
-
+int current_step = 0;
 const TVars TVarsZero = 0.0;                    // для обнуления переменных в памяти GPU
 TVars       *M = NULL;                          // "матрица формы" (host)
 size_t      n = 0;                              // количество ВЭ

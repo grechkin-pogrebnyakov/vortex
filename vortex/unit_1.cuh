@@ -32,9 +32,12 @@ int vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_of_b
 void start_timer(cudaEvent_t &start, cudaEvent_t &stop);
 // остановка таймера
 float stop_timer(cudaEvent_t start, cudaEvent_t stop);
-// определение скоростей в каждой точке через интенсивности вихрей
 
+// определение скоростей в каждой точке через интенсивности вихрей
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels);
+
+void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int stage);
+
 // движение на одном временном шаге + сортировка ВЭ + коллапс
 int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels);
 

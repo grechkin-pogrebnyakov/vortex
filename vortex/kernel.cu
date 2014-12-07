@@ -217,8 +217,8 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
         }
 
     }//f
-    V[i].v[0] += nu * II_3[0] / II_0;
-    V[i].v[1] += nu * II_3[1] / II_0;
+    V[i].v[0] -= nu * II_3[0] / II_0;
+    V[i].v[1] -= nu * II_3[1] / II_0;
 }
 
 __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_p, TVars *M, size_t n, tPanel *panels) {
@@ -240,6 +240,7 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 		TVctr r_new = {pos[i].r[0] + V[i].v[0] * dt,pos[i].r[1] + V[i].v[1] * dt};
 //	    TVctr Zero  = {0, 0};
 		int hitpan = 0;
+/*
 	    if ((pos[i].g != 0) && (hitting(panels, r_new, pos[i].r,&hitpan))) {
             F_p[i].v[0] -= pos[i].g * (-panels[hitpan].contr[1]);
             F_p[i].v[1] -= pos[i].g * ( panels[hitpan].contr[0]);
@@ -250,7 +251,7 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 //		    d_g_Dev[i] = pos[i].g;
 		    pos[i].g = 0;
 		}
-
+*/
 		pos[i].r[0] += V[i].v[0] * dt;
 		pos[i].r[1] += V[i].v[1] * dt;
 
@@ -295,7 +296,7 @@ __global__ void sort_Kernel(Vortex *pos, size_t *s) {
     }
 	(*s)=n;
 }
-__global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
+__global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i<n) {
 		Setx[i] = floor((pos[i].r[0]+2)/HX);
@@ -316,7 +317,7 @@ __global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, 
 	}
 }
 
-__global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
+__global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i<n) {
 		Setx[i] = floor((pos[i].r[0]+2)/HX);
@@ -337,7 +338,7 @@ __global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety,
 	}
 }
 
-__global__ void first_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
+__global__ void second_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
 	for (int i = 0; i < n; i++) {
 		if ((COL[i] > (-1))) {
 			int j = COL[i];
@@ -353,7 +354,7 @@ __global__ void first_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
 	}
 }
 
-__global__ void second_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
+__global__ void first_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
 	for (int i = 0; i < n; i++) {
 		if ((COL[i] > (-1))) {
 			int j = COL[i];
