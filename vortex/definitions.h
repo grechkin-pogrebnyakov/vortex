@@ -14,7 +14,7 @@
 #define QUANT           (2576)                              // количество точек рождения ВЭ
 #define R               (0.5)                               // радиус обтекаемого круга
 #define DELT            (1E-12)                             // 
-#define dt              (0.0001)                            // шаг по времени
+#define dt              (0.001)                            // шаг по времени
 #define INCR_STEP       (8192)                              // шаг увеличения размера массива ВЭ
 #define VINF            {1.0, 0.0}                          // скорость набегающего потока
 #define EPS             (0.0005)                            // радиус ВЭ
@@ -38,7 +38,7 @@
 
 #define RC              {0.0,0.0}							// точка, относительно которой считаем момент
 #define PR_FILE			"Profile_file_plas_2576.txt"		// файл с профилем
-
+//#define PR_FILE			"Profile_file_krug_1000.txt"		// файл с профилем
 
 typedef double TVars;									    // тип данных, применяемый для ВСЕХ чисел с плавающей точкой
 typedef double TVctr[2];								    // вектор
