@@ -38,6 +38,8 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 
 void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int stage);
 
+void save_d(double *d, size_t size, int _step);
+
 // движение на одном временном шаге + сортировка ВЭ + коллапс
 int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels);
 

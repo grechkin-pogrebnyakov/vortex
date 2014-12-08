@@ -118,8 +118,9 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
         }//j
         __syncthreads();
     }//f
-    d[i] = sqrt(d_1 + d_2 + d_3) / 3;
-    d[i] = max(d[i], 4.0 * EPS / 3.0);                                                                          // это ещё почему???!!!
+//    d[i] = sqrt(d_1 + d_2 + d_3) / 3;
+    d[i] = (sqrt(d_1) + sqrt(d_2) + sqrt(d_3)) / 3;
+//    d[i] = max(d[i], 4.0 * EPS / 3.0);                                               // это ещё почему???!!!
     V[i].v[0] = y[0]/(2*M_PI) + (*V_inf)[0];
     V[i].v[1] = y[1]/(2*M_PI) + (*V_inf)[1];
 //	V[i].v[k] =  (*V_inf)[k];
@@ -171,6 +172,7 @@ __global__ void diffusion_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars
 
 __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars nu, tPanel *panels) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) {
     TVctr Ra = {0.0, 0.0};
     TVctr Rb = {0.0, 0.0};
     TVctr Rk = {0.0, 0.0};
@@ -195,30 +197,36 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
         Ra[1] = R_left_y(panels, f);
         Rb[0] = R_right_x(panels, f);
         Rb[1] = R_right_y(panels, f);
-        Rk[0] = R_contr_x(panels, f);
-        Rk[1] = R_contr_y(panels, f);
+        Rk[0] = R_birth_x(panels, f);
+        Rk[1] = R_birth_y(panels, f);
         //dL = sqrt((Ra[0] - Rb[0]) * (Ra[0] - Rb[0]) + (Ra[1] - Rb[1]) * (Ra[1] - Rb[1]));
         dL = panels[f].length;
-        if ((Ro2(a, Rk) < 25 * dL * dL) && (Ro2(a, Rk) > 0.01 * dL * dL)) {
+        double r = sqrt(Ro2(a, Rk));
+      //  II_0 = 1; II_3[0]=r; II_3[1]=1;
+        if ((r < 5 * dL) && (r > 0.1 * dL)) {
             Norm[0] = -N_contr_x(panels, f);
             Norm[1] = -N_contr_y(panels, f);
             I_0_I_3(Ra, Rb, Norm, a, dL, dd, N_OF_POINTS, RES_0, RES_3);
             II_0 += (-dd) * RES_0;
             II_3[0] -= RES_3[0];
             II_3[1] -= RES_3[1];
-        } else if (Ro2(a, Rk) <= 0.01 * dL * dL) {
-
-            Norm[0] = -N_contr_x(panels, f);
-            Norm[1] = -N_contr_y(panels, f);
+        //  II_0 = 1;  II_3[0] = r ; II_3[1]=2;
+        } else if (r <= 0.1 * dL) {
+         //   printf("...");
+            Norm[0] = N_contr_x(panels, f);
+            Norm[1] = N_contr_y(panels, f);
             II_0 = M_PI * dd * dd;
             II_3[0] = 2 * Norm[0] * dd * (1 - exp(-dL / (2 * dd)));
-            II_3[0] = 2 * Norm[1] * dd * (1 - exp(-dL / (2 * dd)));
-            f = QUANT + 5;
+            II_3[1] = 2 * Norm[1] * dd * (1 - exp(-dL / (2 * dd)));
+          //  II_0=1;II_3[0]=r;II_3[1]=0;
+           // f = QUANT + 5;
+            break;
         }
 
     }//f
-    V[i].v[0] -= nu * II_3[0] / II_0;
-    V[i].v[1] -= nu * II_3[1] / II_0;
+    V[i].v[0] += nu * II_3[0] / II_0;
+    V[i].v[1] += nu * II_3[1] / II_0;
+    }
 }
 
 __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_p, TVars *M, size_t n, tPanel *panels) {
@@ -240,7 +248,7 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 		TVctr r_new = {pos[i].r[0] + V[i].v[0] * dt,pos[i].r[1] + V[i].v[1] * dt};
 //	    TVctr Zero  = {0, 0};
 		int hitpan = 0;
-/*
+
 	    if ((pos[i].g != 0) && (hitting(panels, r_new, pos[i].r,&hitpan))) {
             F_p[i].v[0] -= pos[i].g * (-panels[hitpan].contr[1]);
             F_p[i].v[1] -= pos[i].g * ( panels[hitpan].contr[0]);
@@ -251,7 +259,7 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 //		    d_g_Dev[i] = pos[i].g;
 		    pos[i].g = 0;
 		}
-*/
+
 		pos[i].r[0] += V[i].v[0] * dt;
 		pos[i].r[1] += V[i].v[1] * dt;
 
@@ -308,7 +316,7 @@ __global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety,
 		//	for (int j = (i+1); j < n; j++ ) {
 		for (int j = 0; j < n; ++j) {
 			if ((abs(Setx[i] - Setx[j]) < 2) && (abs(Sety[i] - Sety[j]) < 2) && (pos[i].g * pos[j].g > 0) &&
-				(Ro2(pos[i].r,pos[j].r) < R_COL_1) && (j != i) && (fabs(pos[i].g + pos[j].g) < MAX_VE_G)) {
+				(Ro2(pos[i].r,pos[j].r) < R_COL_2) && (j != i) && (fabs(pos[i].g + pos[j].g) < MAX_VE_G)) {
 				COL[i] = j;
 				//j = n + 5;
 				break;
@@ -329,7 +337,7 @@ __global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, 
 		//	for (int j = (i+1); j < n; j++ ) {
 		for (int j = 0; j < n; ++j) {
 			if ((abs(Setx[i] - Setx[j]) < 2) && (abs(Sety[i] - Sety[j]) < 2) &&
-				(pos[i].g * pos[j].g < 0) && (Ro2(pos[i].r,pos[j].r) < R_COL_2)) {
+				(pos[i].g * pos[j].g < 0) && (Ro2(pos[i].r,pos[j].r) < R_COL_1)) {
 					COL[i] = j;
 					//j = n + 5;
 					break;
@@ -358,10 +366,10 @@ __global__ void first_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
 	for (int i = 0; i < n; i++) {
 		if ((COL[i] > (-1))) {
 			int j = COL[i];
-			double new_g = pos[i].g + pos[j].g;
-			pos[i].r[0] = (pos[i].r[0] * fabs(pos[i].g) + pos[j].r[0] * fabs(pos[j].g)) / fabs(new_g);
-			pos[i].r[1] = (pos[i].r[1] * fabs(pos[i].g) + pos[j].r[1] * fabs(pos[j].g)) / fabs(new_g);
-			pos[i].g = new_g;
+			double mnog = fabs(pos[i].g) + fabs(pos[j].g);
+			pos[i].r[0] = (pos[i].r[0] * fabs(pos[i].g) + pos[j].r[0] * fabs(pos[j].g)) / fabs(mnog);
+			pos[i].r[1] = (pos[i].r[1] * fabs(pos[i].g) + pos[j].r[1] * fabs(pos[j].g)) / fabs(mnog);
+			pos[i].g = pos[i].g + pos[j].g;
 			pos[j].g = 0;
 			pos[j].r[0] = (double)(1e+10);
 			pos[j].r[1] = (double)(1e+10);
@@ -421,10 +429,10 @@ __device__ __host__ TVars R_contr_y(tPanel *panel, size_t j) {
     return panel[j].contr[1];
 }
 __device__ __host__ TVars N_contr_x(tPanel *panel, size_t j) {
-	return -panel[j].norm[0];
+	return panel[j].norm[0];
 }
 __device__ __host__ TVars N_contr_y(tPanel *panel, size_t j) {
-    return -panel[j].norm[1];
+    return panel[j].norm[1];
 }
 
 __device__ __host__ TVars Ro2(TVctr a, TVctr b) { 

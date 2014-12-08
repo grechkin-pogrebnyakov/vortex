@@ -491,6 +491,7 @@ float stop_timer(cudaEvent_t start, cudaEvent_t stop) {
 }
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
     extern int current_step;
+    extern size_t n;
     cudaError_t cuerr = cudaSuccess;
 	cudaDeviceSynchronize();
 	dim3 threads = dim3(BLOCK_SIZE);
@@ -503,19 +504,19 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
     Vortex *POS = new Vortex[s];
     cuerr=cudaMemcpy (POS  , pos , s  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
     cuerr=cudaMemcpy (VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
-    save_vel_to_file(POS, VEL, s, current_step, 0);
+    save_vel_to_file(POS, VEL, n, current_step, 0);
     cuerr=cudaGetLastError(); 
 	if (cuerr != cudaSuccess) {               
 		std::cout <<cudaGetErrorString(cuerr);
 		return 1;            
 	}//if
-/*
-	TVars* dd=new TVars[size];
-    cudaMemcpy(dd,dDev,size * sizeof(TVars),cudaMemcpyDeviceToHost);
-    save_d(dd,j);
+
+	TVars* dd=new TVars[s];
+    cudaMemcpy(dd,d,s * sizeof(TVars),cudaMemcpyDeviceToHost);
+    save_d(dd, s, current_step);
     delete[]dd;
- */
-	diffusion_Kernel <<< blocks, threads >>> (pos, s, v, d, nu);
+
+//	diffusion_Kernel <<< blocks, threads >>> (pos, s, v, d, nu);
 //	cuerr=cudaMemcpy (POS  , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
 //	save_to_file(j);
 	cudaDeviceSynchronize();
@@ -524,7 +525,7 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
         VEL[sss].v[0] = VELLL[sss].v[0] - VEL[sss].v[0];
         VEL[sss].v[1] = VELLL[sss].v[1] - VEL[sss].v[1];
     }
-	save_vel_to_file(POS, VEL, s, current_step, 1);
+	save_vel_to_file(POS, VEL, n, current_step, 1);
 
     cuerr=cudaGetLastError(); 
 	if (cuerr != cudaSuccess) {               
@@ -540,8 +541,8 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
         VELLL[sss].v[0] = VEL[sss].v[0] - VELLL[sss].v[0];
         VELLL[sss].v[1] = VEL[sss].v[1] - VELLL[sss].v[1];
     }
-    save_vel_to_file(POS, VELLL, s, current_step, 2);
-    save_vel_to_file(POS, VEL, s, current_step, 3);
+    save_vel_to_file(POS, VELLL, n, current_step, 2);
+    save_vel_to_file(POS, VEL, n, current_step, 3);
 /*	
 	TVars *dd=new TVars[size];
     cudaMemcpy(dd,d,size * sizeof(TVars),cudaMemcpyDeviceToHost);
@@ -594,6 +595,37 @@ void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int sta
     outfile << (size) << endl;
     for (size_t i = 0; i < (size); ++i) {
         outfile<<(int)(i)<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(VEL[i].v[0])<<" "<<(double)(VEL[i].v[1])<<endl;
+        //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
+    }//for i
+    outfile.close();
+} //save_to_file
+
+void save_d(double *d, size_t size, int _step) {
+    using namespace std;
+    char *fname1;
+    fname1 = "ddd/d";
+    char *fname2;
+    fname2 = ".txt";
+    char *fzero;
+    fzero = "0";
+    char fstep[8];
+    char fname[20];
+    fname[0] = '\0';
+    itoa(_step,fstep,10);
+    strcat(fname,fname1);
+    if (_step<10) strcat(fname,fzero);
+    if (_step<100) strcat(fname,fzero);
+    if (_step<1000) strcat(fname,fzero);
+    if (_step<10000) strcat(fname,fzero);
+    //	if (_step<100000) strcat(fname,fzero);
+    strcat(fname,fstep);
+    strcat(fname,fname2);
+    ofstream outfile;
+    outfile.open(fname);
+    // Сохранен­ие числа вихрей в пелене
+    outfile << (size) << endl;
+    for (size_t i = 0; i < (size); ++i) {
+        outfile<<(int)(i)<<" "<<d[i]<<endl;
         //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
     }//for i
     outfile.close();
