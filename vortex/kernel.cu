@@ -188,7 +188,7 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
     a[0] = pos[i].r[0];
     a[1] = pos[i].r[1];
     dd = d[i];
-    TVars II_0 = 2 * M_PI * dd;                                                     // Õ”∆≈Õ À» “”“  ¬¿ƒ–¿“?!!!
+    TVars II_0 = 2 * M_PI * dd * dd;
     TVctr II_3 = {0, 0};
     //	TVars denomenator = 2 * M_PI * dd; // ÁÌ‡ÏÂÌ‡ÚÂÎ¸
     for (int f = 0; f < QUANT; ++f) {
@@ -280,6 +280,7 @@ __global__ void summ_Kernel(TVars *d_g_Dev, TVars *d_g, PVortex *F_p_dev, PVorte
         (*F_p).v[1] += F_p_dev[k].v[1];
         (*M) += M_dev[k];
         }
+//        printf("%.6f\n",*d_g);
         (*F_p).v[0] *= RHO / dt;
         (*F_p).v[1] *= RHO / dt;
         (*M) *= RHO / (2 * dt);
@@ -351,13 +352,17 @@ __global__ void second_collapse_Kernel(Vortex *pos, int *COL, size_t n) {
 		if ((COL[i] > (-1))) {
 			int j = COL[i];
 			double new_g = pos[i].g + pos[j].g;
-			pos[i].r[0] = (pos[i].r[0] * pos[i].g + pos[j].r[0] * pos[j].g) / new_g;
-			pos[i].r[1] = (pos[i].r[1] * pos[i].g + pos[j].r[1] * pos[j].g) / new_g;
-			pos[i].g = new_g;
-			pos[j].g = 0;
-			pos[j].r[0] = (double)(1e+10);
-			pos[j].r[1] = (double)(1e+10);
-			COL[j] = -1;
+            if (fabs(new_g) < 2 * MAX_VE_G) {
+                pos[i].r[0] = (pos[i].r[0] * pos[i].g + pos[j].r[0] * pos[j].g) / new_g;
+                pos[i].r[1] = (pos[i].r[1] * pos[i].g + pos[j].r[1] * pos[j].g) / new_g;
+                pos[i].g = new_g;
+                pos[j].g = 0;
+                pos[j].r[0] = (double)(1e+10);
+                pos[j].r[1] = (double)(1e+10);
+                COL[j] = -1;
+            } else {
+                printf("%.6f  %.6f  %.6f\n", pos[i].r[0], pos[i].r[1], new_g);
+            }
 		}
 	}
 }
@@ -440,7 +445,8 @@ __device__ __host__ TVars Ro2(TVctr a, TVctr b) {
 	x = (a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]);
     return x;
 }
-__device__ void I_0_I_3(TVctr &Ra, TVctr &Rb, TVctr &Norm, TVctr &Rj, TVars &dL, TVars &d, size_t N, TVars &RES_0, TVctr &RES_3) {
+
+inline __device__ void I_0_I_3(TVctr &Ra, TVctr &Rb, TVctr &Norm, TVctr &Rj, TVars &dL, TVars &d, size_t N, TVars &RES_0, TVctr &RES_3) {
     TVctr Rk = {0.0, 0.0};
     TVctr Eta = {0.0, 0.0};
     TVctr dR = {0.0, 0.0};
@@ -455,10 +461,11 @@ __device__ void I_0_I_3(TVctr &Ra, TVctr &Rb, TVctr &Norm, TVctr &Rj, TVars &dL,
         Rk[1] = (Ra[1] + k * dR[1] + Ra[1] + (k + 1) * dR[1]) / 2;
         Eta[0] = (Rj[0] - Rk[0]) / d;
         Eta[1] = (Rj[1] - Rk[1]) / d;
+        double mod_eta = sqrt(Eta[0] * Eta[0] + Eta[1] * Eta[1]);
         RES_0 += (Eta[0] * Norm[0] + Eta[1] * Norm[1]) / (Eta[0] * Eta[0] + Eta[1] * Eta[1]) * 
-            (sqrt(Eta[0] * Eta[0] + Eta[1] * Eta[1]) + 1) * exp(-sqrt(Eta[0] * Eta[0] + Eta[1] * Eta[1])) * delt;
-        RES_3[0] += Norm[0] * exp(-sqrt(Eta[0] * Eta[0] + Eta[1] * Eta[1])) * delt;
-        RES_3[1] += Norm[1] * exp(-sqrt(Eta[0] * Eta[0] + Eta[1] * Eta[1])) * delt;
+            (mod_eta + 1) * exp(-mod_eta) * delt;
+        RES_3[0] += Norm[0] * exp(-mod_eta) * delt;
+        RES_3[1] += Norm[1] * exp(-mod_eta) * delt;
     }
 }
 
