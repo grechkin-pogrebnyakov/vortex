@@ -61,14 +61,18 @@ int main() {
     // Вычисление скоростей при x = 0.35
     Contr_points_host = new PVortex[500];
     for (int i = 0; i < 500; ++i) {
-        Contr_points_host[i].v[1] = 0.002 * i;
-        Contr_points_host[i].v[0] = 0.35;
+        Contr_points_host[i].v[1] = 0.01 + 0.002 * i;
+        Contr_points_host[i].v[0] = -0.15;
     }
 
-    V_contr_host = new PVortex[500];
-    cuerr=cudaMalloc((void**)&V_contr_device, 500 * sizeof(PVortex));
+    V_contr_host = new PVortex[500 * SAVING_STEP];
+    cuerr=cudaMalloc((void**)&V_contr_device, 500 * SAVING_STEP * sizeof(PVortex));
     cuerr=cudaMalloc((void**)&Contr_points_device, 500 * sizeof(PVortex));
     cuerr=cudaMemcpy(Contr_points_device, Contr_points_host, 500 * sizeof(PVortex), cudaMemcpyHostToDevice);
+    int v_n_host = 0;
+    int *v_n_device = NULL;
+    cuerr=cudaMalloc((void**)&v_n_device, sizeof(int));
+    cuerr=cudaMemcpy(v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice);
 
 //-----------------------------------------------------------------------------------------------------------------------------
 /*
@@ -184,10 +188,9 @@ int main() {
 
 //////////////////////////////////////////////////////////////////////////
 
-            velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_device);
 
-            cuerr=cudaMemcpy(V_contr_host, V_contr_device, 500 * sizeof(PVortex), cudaMemcpyDeviceToHost);
-
+            cuerr=cudaMemcpy(V_contr_host, V_contr_device, 500 * SAVING_STEP * sizeof(PVortex), cudaMemcpyDeviceToHost);
+            cuerr=cudaMemcpy(v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice);
             char *fname1;
             fname1 = "Vel";
             char *fname2;
@@ -209,9 +212,9 @@ int main() {
             ofstream outfile;
             outfile.open(fname);
             // Сохранен­ие числа вихрей в пелене
-            outfile << (100) << endl;
-            for (size_t i = 0; i < (500); ++i) {
-                outfile<<(int)(i)<<" "<<(double)(Contr_points_host[i].v[0])<<" "<<(double)(Contr_points_host[i].v[1])<<" "<<(double)(V_contr_host[i].v[0])<<" "<<(double)(V_contr_host[i].v[1])<<endl;
+//            outfile << (100) << endl;
+            for (size_t i = 0; i < (500 * SAVING_STEP); ++i) {
+                outfile<<(int)(i)<<" "<<(double)(Contr_points_host[i%500].v[0])<<" "<<(double)(Contr_points_host[i%500].v[1])<<" "<<(double)(V_contr_host[i].v[0])<<" "<<(double)(V_contr_host[i].v[1])<<endl;
                 //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
                 // нули пишутся для совместимо­сти с трехмерной­ программой­ и обработчик­ами ConMDV, ConMDV-p и Construct
             }//for i
@@ -222,7 +225,7 @@ int main() {
 
 			save_to_file(POS_host, n, Psp, current_step);
         }// if sv
-
+        velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_device, v_n_device);
         cuerr=cudaMemcpy(&F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost);
         if (cuerr != cudaSuccess) {
             cout << cudaGetErrorString(cuerr) << '\n';
