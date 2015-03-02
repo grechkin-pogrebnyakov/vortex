@@ -14,28 +14,28 @@
 int main() {
     using namespace std;
     int cnt = 0;
-    size_t birth;                                                   // СЂР°СЃС€РёСЂРµРЅРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ СЂРѕР¶РґР°РµРјС‹С… Р’Р­
-    double rash;                                                    // (РєСЂР°С‚РЅРѕ BLOCK_SIZE)
-	size_t p = 0;												// РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕС‡РµРє СЂРѕР¶РґРµРЅРёСЏ Р’Р­
-    cudaError_t cuerr;												// РѕС€РёР±РєРё CUDA
+    size_t birth;                                                   // расширенное количество рождаемых ВЭ
+    TVars rash;                                                    // (кратно BLOCK_SIZE)
+	size_t p = 0;												// количество точек рождения ВЭ
+    cudaError_t cuerr;												// ошибки CUDA
     cudaDeviceReset();
     load_profile(panels_host, p);
-	int menu = 0;
+	int menu = 1;
 	cout << "1 - generate matrix\n2 - load matrix\n";
-	cin >> menu;
-    cin.get();
+	//cin >> menu;
+    //cin.get();
 	if (menu == 0) {
 		return 0;
 	} else if (menu == 1) {
 		cout << "generate matrix\n";
 		do {
-	        M = matr_creation(panels_host, p);                                       // генерация "матрицы формы"
+	        M = matr_creation(panels_host, p);                                       // генерация матрицы
 			++cnt;
 		} while (M == NULL && cnt < 10);
 		cnt = 0;
 		if (M == NULL) {
 	        cout << "Matrix creation error!\n";
-            cin.get();
+            //cin.get();
 			return 1;
 		} else {
             cout << "Matrix created!\n";
@@ -45,17 +45,17 @@ int main() {
 		M = load_matrix(p);
 		if (M == NULL) {
 			cout << "Matrix loading error!\n";
-            cin.get();
+            //cin.get();
 			return 1;
 		} else {
             cout << "Matrix loaded!\n";
         }
 	}
 //	n=new size_t;
-	n = 0;															// РєРѕР»РёС‡РµСЃС‚РІРѕ Р’Р­
-	size = 0;                                                       // СЂР°Р·РјРµСЂ РјР°СЃСЃРёРІР° Р’Р­
-	Psp.eps = 0.008;                                                //
-	rash = (double)(p) / BLOCK_SIZE;
+	n = 0;															// количество ВЭ
+	size = 0;                                                       // размер массива ВЭ
+	Psp.eps = 0.008;                                                // 
+	rash = (TVars)(p) / BLOCK_SIZE;
 	birth = (size_t)(BLOCK_SIZE * ceil(rash));
 
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -123,11 +123,11 @@ int main() {
     float creation_time = 0.0;
     float speed_time = 0.0;
     float step_time = 0.0;
-	cudaEvent_t start = 0, stop = 0;
+	cudaEvent_t start = 0, stop = 0;	    
 //------------------------------------------------------------------------------------------
     V_inf_host[0] = 0.0;
     cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
-    double d_V_inf = 1.0/100;
+    TVars d_V_inf = 1.0/100;
 
     // цикл шагов выполнения расчётов
 	for (current_step = 0; current_step < st; current_step++) {
@@ -138,15 +138,15 @@ int main() {
         //cout << j << ' ';
         // количество ВЭ на текущем шаге, увеличенное до кратности BLOCK_SIZE
         size_t s = 0;
-        double rashirenie = 0;
-        rashirenie = (double)(n+p)/BLOCK_SIZE;
+        TVars rashirenie = 0;
+        rashirenie = (TVars)(n+p)/BLOCK_SIZE;
         s = (int)(BLOCK_SIZE*ceil(rashirenie));
         if (s > size) {
             //СѓРІРµР»РёС‡РµРЅРёРµ РјР°СЃСЃРёРІР° Р’Р­ РЅР° INCR_STEP СЌР»РµРјРµРЅС‚РѕРІ, РµСЃР»Рё СЌС‚Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ
 		    err=incr_vort_quont(POS_host, POS_device, VEL_host, VEL_device, d_device, size);
             if (err != 0) {
                 cout << "Increase ERROR!" << endl;
-                cin.get();
+                //cin.get();
                 mem_clear();
                 return 1;
             }// if err
@@ -159,17 +159,28 @@ int main() {
         start = 0; stop = 0;
         start_timer(start, stop);
 		err = vort_creation(POS_device, V_inf_device, p, birth, n, M_device, d_g_device, panels_device);
-
-        if (err != 0) {
+creation_time += stop_timer(start, stop);
+        if (err ) {
             cout << "Creation ERROR!" << endl;
             mem_clear();
-            cin.get();
+            //cin.get();
             return 1;
         }// if err
 		n += p;
-        creation_time += stop_timer(start, stop);
+//        creation_time = stop_timer(start, stop);
 //	cuerr=cudaMemcpy ( POS , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
 //	save_to_file_size(2*j+1);
+
+        if ( current_step % 1 == 0 ) {
+            if (current_step == 0) {
+                outfile222.open("Log.log");
+            } else {
+                outfile222.close();
+                outfile222.open("Log.log", ifstream::app);
+            }
+
+            outfile222 << current_step << "\tN = " << n << "\tCreation time = " << creation_time << " speed time = " << speed_time << " step time = " << step_time << '\n';
+        }
 
         // вывод данных в файл
 		if (current_step%sv == 0) {
@@ -178,15 +189,21 @@ int main() {
 			cuerr=cudaMemcpy(POS_host, POS_device, n  * sizeof(Vortex), cudaMemcpyDeviceToHost);
             if (cuerr != cudaSuccess) {
                 cout << cudaGetErrorString(cuerr) << '\n';
-                cout << "Saving ERROR\n";
+                cout << "Saving ERROR at POS copy\n";
+		printf( "n = %u, sizeof(POS_host) = %u, size = %u\n", n, sizeof(POS_host), size );
                 mem_clear();
-                cin.get();
+                //cin.get();
                 return 1;
             }// if cuerr
 //			cuerr=cudaMemcpy ( POS , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
             cout << "\nOutput " << current_step << '\n';
-
-
+/*
+double gamma = 0.0;
+	for( int i = 0; i < n; ++i ) {
+		gamma += POS_host[i].g;
+	}
+std::cout << gamma<<'\n';
+*/
 //////////////////////////////////////////////////////////////////////////
 
 
@@ -215,8 +232,9 @@ int main() {
             // Сохранен­ие числа вихрей в пелене
 //            outfile << (100) << endl;
             for (size_t i = 0; i < (500 * SAVING_STEP); ++i) {
-                outfile<<(int)(i)<<" "<<(double)(Contr_points_host[i%500].v[0])<<" "<<(double)(Contr_points_host[i%500].v[1])<<" "<<(double)(V_contr_host[i].v[0])<<" "<<(double)(V_contr_host[i].v[1])<<endl;
-                //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
+                outfile<<(int)(i)<<" "<<(TVars)(Contr_points_host[i%500].v[0])<<" "<<(TVars)(Contr_points_host[i%500].v[1])
+                        <<" "<<(TVars)(V_contr_host[i].v[0])<<" "<<(TVars)(V_contr_host[i].v[1])<<endl;
+                //      outfile<<(TVars)(d[i])<<" "<<(TVars)(POS[i].r[0])<<" "<<(TVars)(POS[i].r[1])<<" "<<(TVars)(POS[i].g)<<endl;     
                 // нули пишутся для совместимо­сти с трехмерной­ программой­ и обработчик­ами ConMDV, ConMDV-p и Construct
             }//for i
             outfile.close();
@@ -230,17 +248,17 @@ int main() {
         cuerr=cudaMemcpy(&F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost);
         if (cuerr != cudaSuccess) {
             cout << cudaGetErrorString(cuerr) << '\n';
-            cout << "Saving ERROR\n";
+            cout << "Saving ERROR at F_p copy, step =  " << current_step << "F_p_host = " << &F_p_host << "F_p_device = " << F_p_device <<'\n';
             mem_clear();
-            cin.get();
+            //cin.get();
             return 1;
         }// if cuerr
         cuerr=cudaMemcpy(&Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost);
         if (cuerr != cudaSuccess) {
             cout << cudaGetErrorString(cuerr) << '\n';
-            cout << "Saving ERROR\n";
+            cout << "Saving ERROR Momentum copy, step = " << current_step << "M_host = " << &Momentum_host << "M_device = " << Momentum_device << '\n';
             mem_clear();
-            cin.get();
+            //cin.get();
             return 1;
         }// if cuerr
         save_forces(F_p_host, Momentum_host, current_step);
@@ -262,7 +280,7 @@ int main() {
                 }
 				save_to_file(0);
 			}
-			double gamma=0.0;
+			TVars gamma=0.0;
 
 //			for (int k=(*n)-1.0;k>((*n)-QUANT)-1.0;k--)
 			for (int k=0;k<(*n);k++)
@@ -281,7 +299,7 @@ int main() {
 		if (err != 0) {
             cout << "Speed evaluation ERROR!" << endl;
             mem_clear();
-			cin.get();
+			//cin.get();
 			return 1;
 		}
         speed_time += stop_timer(start, stop);
@@ -306,7 +324,7 @@ int main() {
 		if (err != 0) {
             cout << "Moving ERROR!" << endl;
             mem_clear();
-			cin.get();
+			//cin.get();
 			return 1;
 		}
         step_time += stop_timer(start, stop);
@@ -334,7 +352,8 @@ int main() {
 	cout<<"ready!";
 //  cin.get();
     mem_clear();
-	cin.get();
+outfile222.close();
+	//cin.get();
 	return 0;
 }
 void mem_clear() {
@@ -373,9 +392,10 @@ void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
     // РЎРѕС…СЂР°РЅРµРЅВ­РёРµ С‡РёСЃР»Р° РІРёС…СЂРµР№ РІ РїРµР»РµРЅРµ
     outfile << (size) << endl;
     for (size_t i = 0; i < (size); ++i) {
-        outfile<<(int)(i)<<" "<<(double)(Psp.eps)<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<"0.0"<<" "<<"0.0"<<" "<<"0.0"<<" "<<(double)(POS[i].g)<<endl;
-//      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;
-        // РЅСѓР»Рё РїРёС€СѓС‚СЃСЏ РґР»СЏ СЃРѕРІРјРµСЃС‚РёРјРѕВ­СЃС‚Рё СЃ С‚СЂРµС…РјРµСЂРЅРѕР№В­ РїСЂРѕРіСЂР°РјРјРѕР№В­ Рё РѕР±СЂР°Р±РѕС‚С‡РёРєВ­Р°РјРё ConMDV, ConMDV-p Рё Construct
+        outfile<<(int)(i)<<" "<<(TVars)(Psp.eps)<<" "<<(TVars)(POS[i].r[0])<<" "<<(TVars)(POS[i].r[1])<<" "
+        <<"0.0"<<" "<<"0.0"<<" "<<"0.0"<<" "<<(TVars)(POS[i].g)<<endl;
+//      outfile<<(TVars)(d[i])<<" "<<(TVars)(POS[i].r[0])<<" "<<(TVars)(POS[i].r[1])<<" "<<(TVars)(POS[i].g)<<endl;     
+        // нули пишутся для совместимо­сти с трехмерной­ программой­ и обработчик­ами ConMDV, ConMDV-p и Construct
     }//for i
     outfile.close();
 } //save_to_file
@@ -388,7 +408,7 @@ void save_forces(PVortex F_p, TVars M, int step) {
     } else {
         outfile.open("F_p.txt", ifstream::app);
     }
-    outfile << step << " " << (double)F_p.v[0] << " " << (double)F_p.v[1] << ' ' << M << '\n';
+    outfile << step << " " << (TVars)F_p.v[0] << " " << (TVars)F_p.v[1] << ' ' << M << '\n';
     outfile.close();
 }
 
@@ -400,7 +420,7 @@ void load_profile(tPanel *&panels, size_t &p) {
 	infile >> buff;
 	infile >> buff;
 	infile >> p;
-	double rash = (double)(p) / BLOCK_SIZE;
+	TVars rash = (TVars)(p) / BLOCK_SIZE;
 	size_t birth = (size_t)(BLOCK_SIZE * ceil(rash));
 	panels = new tPanel[birth];
 	for (size_t i = 0; i < p; ++i) {

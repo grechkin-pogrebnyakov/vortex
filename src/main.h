@@ -1,23 +1,14 @@
-/*
- ============================================================================
- Name        : main.h
- Author      : Sergey Grechkin-Pogrebnyakov
- Version     : Feb. 22, 2014
- Copyright   : All rights reserved
- Description : main header of vortex project
- ============================================================================
- */
-
 #ifndef MAIN_H_
 #define MAIN_H_
 
-//#include "kernel.cuh"
+#include "kernel.cuh"
 #include "unit_1.cuh"
 //#include "definitions.h"
 
 
 #include <string>
 
+std::ofstream outfile222;
 int current_step = 0;
 const TVars TVarsZero = 0.0;                    // для обнуления переменных в памяти GPU
 TVars       *M = NULL;                          // "матрица формы" (host)

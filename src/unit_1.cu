@@ -9,11 +9,12 @@
  */
 
 #include "unit_1.cuh"
+#include "kernel.cuh"
 
 TVars   *matr_creation(tPanel *panels, size_t s) {
-    double rash = 0.0;
+    TVars rash = 0.0;
     size_t birth = 0;
-    rash = (double)(s) / BLOCK_SIZE;
+    rash = (TVars)(s) / BLOCK_SIZE;
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
     TVars **M = NULL;
     TVars *MM = NULL;
@@ -36,34 +37,109 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
             delete[] L;
         }
     }
-    double dist2 = 0.0;
-    TVctr a = {0.0, 0.0};
-    TVctr N = {0.0, 0.0};
-    TVctr b = {0.0, 0.0};
-    for (size_t i = 0; i < s; ++i) {
-        a[0] = R_contr_x(panels, i);
-        a[1] = R_contr_y(panels, i);
-        N[0] = N_contr_x(panels, i);
-        N[1] = N_contr_y(panels, i);
+    TVars dist2 = 0.0;
+    TVctr a_0 = {0.0, 0.0};
+    TVctr a_1 = {0.0, 0.0};
+    TVctr b_0 = {0.0, 0.0};
+    TVctr b_1 = {0.0, 0.0};
+    TVars d_i_2 = 0.0;
+    TVctr d_i = {0.0, 0.0};
+    TVars d_j_2 = 0.0;
+    TVctr d_j = {0.0, 0.0};
+    TVctr p_1, p_2, s_1, s_2;
+    TVars q1_1, q1_2, q1_3, q2_1, q2_2, q2_3, z_1, z_2, z_3;
+    TVctr c_1, c_2, c_3;
+    TVctr tau, v;
+    for (size_t i = 0; i < s; ++i) { 
+        tau[0] = Tau_x( panels, i ); 
+        tau[1] = Tau_y( panels, i );
         for (size_t j = 0;j < s; ++j) {
-            b[0] = R_birth_x(panels, j);
-            b[1] = R_birth_y(panels, j);
-            dist2 = Ro2(a, b);
-		    dist2 = max(dist2,EPS2);
-            L[i][j] = ((a[0] - b[0]) * N[1] -
-            (a[1] - b[1]) * N[0]) /
-            (2 * M_PI * dist2);
+        if ( j != i ) {
+            a_0[0] = R_left_x( panels, i ); 
+            a_0[1] = R_left_y( panels, i );
+            a_1[0] = R_right_x( panels, i ); 
+            a_1[1] = R_right_y( panels, i );
+
+            b_0[0] = R_left_x( panels, j ); 
+            b_0[1] = R_left_y( panels, j );
+            b_1[0] = R_right_x( panels, j ); 
+            b_1[1] = R_right_y( panels, j );
+
+            if ( ( j == i +1 ) || ( ( j == 0 ) && ( i == s - 1 ) ) ) {
+                a_1[0] = R_left_x( panels, i ); 
+                a_1[1] = R_left_y( panels, i );
+                a_0[0] = R_right_x( panels, i ); 
+                a_0[1] = R_right_y( panels, i );
+
+                b_1[0] = R_left_x( panels, j ); 
+                b_1[1] = R_left_y( panels, j );
+                b_0[0] = R_right_x( panels, j ); 
+                b_0[1] = R_right_y( panels, j );
+            }
+
+            d_j[0] = b_1[0] - b_0[0];
+            d_j[1] = b_1[1] - b_0[1];
+            d_i[0] = a_1[0] - a_0[0];
+            d_i[1] = a_1[1] - a_0[1];
+           
+            p_1[0] = a_0[0] - b_1[0];
+            p_1[1] = a_0[1] - b_1[1];
+            p_2[0] = a_1[0] - b_1[0];
+            p_2[1] = a_1[1] - b_1[1];
+
+            s_1[0] = a_0[0] - b_0[0];
+            s_1[1] = a_0[1] - b_0[1];
+            s_2[0] = a_1[0] - b_0[0];
+            s_2[1] = a_1[1] - b_0[1];
+
+            z_1 = p_1[0] * p_2[1] - p_1[1] * p_2[0];
+            z_2 = s_1[0] * s_2[1] - s_1[1] * s_2[0];
+            z_3 = s_2[0] * p_2[1] - s_2[1] * p_2[0];
+
+            if ( ( j == i - 1 ) || ( j == i + 1 )\
+              || ( (j == 0 ) && ( i == s - 1 ) )\
+              || ( (i == 0 ) && ( j == s - 1 ) ) ) {
+                q1_1 = 0.0; q2_1 = 0.0;
+            } else {
+                q1_1 = atan( sp( d_i, p_1 ) / z_1 ) - atan( sp( d_i, p_2 ) / z_1 );
+                q2_1 = 0.5 * log( sp( p_2, p_2 ) / sp( p_1, p_1 ) );
+            }
+
+            q1_2 = atan( sp( d_i, s_2 ) / z_2 ) - atan( sp( d_i, s_1 ) / z_2 );
+            q1_3 = atan( sp( d_j, p_2 ) / z_3 ) - atan( sp( d_j, s_2 ) / z_3 );
+
+            q2_2 = 0.5 * log( sp( s_1, s_1 ) / sp( s_2, s_2 ) );
+            q2_3 = 0.5 * log( sp( p_2, p_2 ) / sp( s_2, s_2 ) );
+
+            c_1[0] = sp( d_j, p_1 ) * d_i[0] + sp( d_i, s_1 ) * d_j[0] \
+	 	   - sp( d_i, d_j ) * s_1[0];
+            c_1[1] = sp( d_j, p_1 ) * d_i[1] + sp( d_i, s_1 ) * d_j[1] \
+	 	   - sp( d_i, d_j ) * s_1[1];
+            c_2[0] = c_1[0] + sp( d_j, d_j ) * d_i[0];
+            c_2[1] = c_1[1] + sp( d_j, d_j ) * d_i[1];
+            c_3[0] = sp( d_i, d_i ) * d_j[0];
+            c_3[1] = sp( d_i, d_i ) * d_j[1];
+
+            v[0] = 1.0 / ( 2 * M_PI * sqrt( sp( d_j, d_j ) ) * sp( d_i, d_i ) )\
+                 * (q1_1 * c_1[0] + q1_2 * c_2[0] + q1_3 * c_3[0]\
+                  + ( q2_1 * c_1[1] + q2_2 * c_2[1] + q2_3 * c_3[1] ) );
+            v[1] = 1.0 / ( 2 * M_PI * sqrt( sp( d_j, d_j ) ) * sp( d_i, d_i ) )\
+                 * (q1_1 * c_1[1] + q1_2 * c_2[1] + q1_3 * c_3[1]\
+                  - ( q2_1 * c_1[0] + q2_2 * c_2[0] + q2_3 * c_3[0] ) );
+
+            L[i][j] = sp( v, tau );
+        } else L[i][j] = -0.5;
         }
     }
     for (size_t i=0; i<s; i++) {
-        L[s][i]=1;
+        L[s][i] = Panel_length( panels, i );
         L[i][s]=1;
     }
     L[s][s]=0;
     save_matr(L, s+1, "L.txt");
     M=inverse_matrix(L,s+1);
 	clear_memory(L, s+1);
-    if (M == NULL) {
+    if (M == NULL) {    
         return NULL;
     }
 	save_matr(M, s+1, "M.txt");
@@ -119,11 +195,11 @@ TVars   *load_matrix(size_t &p) {
 			infile >> M[i][j];
 		}
 	}
-    double rash = 0.0;
+    TVars rash = 0.0;
     size_t birth = 0;
-    rash = (double)(p) / BLOCK_SIZE;
+    rash = (TVars)(p) / BLOCK_SIZE;
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
-
+    
     TVars *MM = NULL;
     MM = new TVars[(birth + 1) * (birth + 1)];
     if (MM == NULL) return NULL;
@@ -152,7 +228,7 @@ int     save_matr(TVars* M, size_t size, char *name = "D.txt") {
     outfile.open(name);
     for (size_t i = 0; i < size; ++i) {
         for (size_t j = 0; j < size; j++) {
-            outfile<<(double)(M[i*size+j])<<"    ";
+            outfile<<(TVars)(M[i*size+j])<<"    ";
         }// for j
         outfile<<endl;
     }// for i
@@ -171,7 +247,7 @@ int     save_matr(TVars** M, size_t size, char *name = "D.txt") {
             return 1;
         }
         for (size_t j = 0; j < size; j++) {
-            outfile<<(double)(M[i][j])<<"    ";
+            outfile<<(TVars)(M[i][j])<<"    ";
         }// for j
         outfile<<endl;
     }// for i
@@ -458,12 +534,16 @@ int     vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_
                      size_t n, TVars * M_Dev, TVars *d_g, tPanel *panels) {
     using namespace std;
     cudaError_t cuerr = cudaSuccess;
+    cudaEvent_t start, stop;
+start_timer(start, stop);
     TVars *R_p = NULL;
     cuerr=cudaMalloc((void**)&R_p, (n_of_birth_BLOCK_S) * sizeof(TVars));
     if (cuerr != cudaSuccess) {
         cout << cudaGetErrorString(cuerr) << '\n';
         return 1;
     }
+    extern int current_step;
+
 	dim3 threads1 = dim3(BLOCK_SIZE);
     dim3 blocks1  = dim3(n_of_birth_BLOCK_S/BLOCK_SIZE);
     Right_part_Kernel <<< blocks1, threads1 >>> (pos, V_infDev, n, n_of_birth_BLOCK_S, R_p, panels);
@@ -473,6 +553,8 @@ int     vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_
         cout << cudaGetErrorString(cuerr) << '\n';
         return 1;
     }
+
+
 	birth_Kernel<<< blocks1, threads1 >>>(pos, n, n_of_birth, n_of_birth_BLOCK_S, M_Dev, d_g, R_p, panels);
 	cudaDeviceSynchronize();
     cuerr = cudaGetLastError();
@@ -500,23 +582,23 @@ float stop_timer(cudaEvent_t start, cudaEvent_t stop) {
     return time;
 }
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
-//    extern int current_step;
-//    extern size_t n;
+    //extern int current_step;
+    //extern size_t n;
     cudaError_t cuerr = cudaSuccess;
 	cudaDeviceSynchronize();
 	dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(s/BLOCK_SIZE);
-//    PVortex * VEL = new PVortex[s];
-//    PVortex * VELLL = new PVortex[s];
+    //PVortex * VEL = new PVortex[s];
+    //PVortex * VELLL = new PVortex[s];
 	shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
     cudaDeviceSynchronize();
-//    Vortex *POS = new Vortex[s];
-//    cuerr=cudaMemcpy (POS  , pos , s  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-//    cuerr=cudaMemcpy (VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
-//    save_vel_to_file(POS, VEL, n, current_step, 0);
-    cuerr=cudaGetLastError();
-	if (cuerr != cudaSuccess) {
+    //Vortex *POS = new Vortex[s];
+    //cuerr=cudaMemcpy (POS  , pos , s  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
+    //cuerr=cudaMemcpy (VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
+    //save_vel_to_file(POS, VEL, n, current_step, 0);
+    cuerr=cudaGetLastError(); 
+	if (cuerr != cudaSuccess) {               
 		std::cout <<cudaGetErrorString(cuerr);
 		return 1;
 	}//if
@@ -538,8 +620,8 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
     }
 	save_vel_to_file(POS, VEL, n, current_step, 1);
 */
-    cuerr=cudaGetLastError();
-	if (cuerr != cudaSuccess) {
+    cuerr=cudaGetLastError(); 
+	if (cuerr != cudaSuccess) {               
 		std::cout <<cudaGetErrorString(cuerr);
 		return 1;
 	}//if
@@ -556,7 +638,7 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
     save_vel_to_file(POS, VELLL, n, current_step, 2);
     save_vel_to_file(POS, VEL, n, current_step, 3);
 */
-/*
+/*	
 	TVars *dd=new TVars[size];
     cudaMemcpy(dd,d,size * sizeof(TVars),cudaMemcpyDeviceToHost);
     cout<<"d= "<<dd[0]<<endl;
@@ -591,8 +673,8 @@ void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int sta
     char fname[20];
     fname[0] = '\0';
     char stage_str[5];
-    itoa(stage, stage_str, 10);
-    itoa(_step,fstep,10);
+    sprintf(stage_str, "%d", stage);
+    sprintf(fstep,"%d", _step);
     strcat(fname,fname1);
     strcat(fname, stage_str);
     if (_step<10) strcat(fname,fzero);
@@ -607,13 +689,13 @@ void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int sta
     // Сохранен­ие числа вихрей в пелене
     outfile << (size) << endl;
     for (size_t i = 0; i < (size); ++i) {
-        outfile<<(int)(i)<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(VEL[i].v[0])<<" "<<(double)(VEL[i].v[1])<<endl;
-        //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
+        outfile<<(int)(i)<<" "<<(TVars)(POS[i].r[0])<<" "<<(TVars)(POS[i].r[1])<<" "<<(TVars)(VEL[i].v[0])<<" "<<(TVars)(VEL[i].v[1])<<endl;
+        //      outfile<<(TVars)(d[i])<<" "<<(TVars)(POS[i].r[0])<<" "<<(TVars)(POS[i].r[1])<<" "<<(TVars)(POS[i].g)<<endl;     
     }//for i
     outfile.close();
 } //save_to_file
 
-void save_d(double *d, size_t size, int _step) {
+void save_d(TVars *d, size_t size, int _step) {
     using namespace std;
     char *fname1;
     fname1 = "ddd/d";
@@ -624,7 +706,7 @@ void save_d(double *d, size_t size, int _step) {
     char fstep[8];
     char fname[20];
     fname[0] = '\0';
-    itoa(_step,fstep,10);
+    sprintf(fstep,"%d", _step);
     strcat(fname,fname1);
     if (_step<10) strcat(fname,fzero);
     if (_step<100) strcat(fname,fzero);
@@ -639,7 +721,7 @@ void save_d(double *d, size_t size, int _step) {
     outfile << (size) << endl;
     for (size_t i = 0; i < (size); ++i) {
         outfile<<(int)(i)<<" "<<d[i]<<endl;
-        //      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
+        //      outfile<<(TVars)(d[i])<<" "<<(TVars)(POS[i].r[0])<<" "<<(TVars)(POS[i].r[1])<<" "<<(TVars)(POS[i].g)<<endl;     
     }//for i
     outfile.close();
 } //save_to_file
@@ -695,8 +777,8 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 //	std::cout << "d_g = " << d_g_h << '\n';
 
 	size_t *n_dev = NULL;
-	cuerr = cudaMalloc( (void**)&n_dev ,  sizeof(size_t));
-	if (cuerr!= cudaSuccess) {
+	cuerr = cudaMalloc( (void**)&n_dev ,  sizeof(size_t)); 
+	if (cuerr!= cudaSuccess) {               
 		std::cout <<cudaGetErrorString(cuerr) << '\n';
 		return 1;
 	}//if
@@ -712,11 +794,13 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 		std::cout <<cudaGetErrorString(cuerr) << '\n';
 		return 1;
 	}//if
+//	std::cout << "n_old =  " << n;
 	cuerr = cudaMemcpy(&n,n_dev,sizeof(size_t), cudaMemcpyDeviceToHost);
 	if (cuerr!= cudaSuccess) {
 		std::cout <<cudaGetErrorString(cuerr) << '\n';
 		return 1;
 	}//if
+//        std::cout << "   n_new =  " << n <<'\n';
 	cudaFree(n_dev);
 //    std::cout << "first collapse\n";
 	for (int cc = 0; cc < NCOL; ++cc) {
@@ -726,7 +810,7 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 		cuerr=cudaMalloc (&Setx, n * sizeof( int ));
 		cuerr=cudaMalloc (&Sety, n * sizeof( int ));
 		cuerr=cudaMalloc (&COL, n * sizeof( int ));
-
+		
 		first_setka_Kernel <<< blocks, threads >>> (pos, n, Setx, Sety, COL);
 		cudaFree(Setx);
 		cudaFree(Sety);
@@ -795,12 +879,17 @@ int Step(Vortex *pos, PVortex *V, size_t &n, size_t s, TVars *d_g, PVortex *F_p,
 
 int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v) {
     cudaError_t cuerr;
-    dim3 threads = dim3(50);
-    dim3 blocks  = dim3(10);
+    size_t nummmm = 500;
+    TVars rash = 0.0;
+    size_t birth = 0;
+    rash = (TVars)(nummm) / BLOCK_SIZE;
+    birth = (size_t)(BLOCK_SIZE * ceil(rash));
+    dim3 threads = dim3(BLOCK_SIZE);
+    dim3 blocks  = dim3(birth / BLOCK_SIZE);
     velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_v);
-    cudaDeviceSynchronize();
-    cuerr = cudaGetLastError();
-    if (cuerr != cudaSuccess) {
+    cudaDeviceSynchronize();    
+    cuerr = cudaGetLastError();    
+    if (cuerr != cudaSuccess) {        
         std::cout << cudaGetErrorString(cuerr) << '\n';
         return 1;
     }
