@@ -12,6 +12,7 @@ vortex.sln
 vortex/vortex.vcxproj.filters
 vortex/bmp/
 vortex/*.nb
+output*/
 
 # User-specific files
 *.suo
