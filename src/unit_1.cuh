@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Name        : unit_1.cuh
+ Author      : Sergey Grechkin-Pogrebnyakov
+ Version     : Feb. 22, 2014
+ Copyright   : All rights reserved
+ Description : unit_1 header of vortex project
+ ============================================================================
+ */
+
 #ifndef UNIT_1_CUH_
 #define UNIT_1_CUH_
 

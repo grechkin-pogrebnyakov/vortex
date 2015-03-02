@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Name        : main.h
+ Author      : Sergey Grechkin-Pogrebnyakov
+ Version     : Feb. 22, 2014
+ Copyright   : All rights reserved
+ Description : main header of vortex project
+ ============================================================================
+ */
+
 #ifndef MAIN_H_
 #define MAIN_H_
 

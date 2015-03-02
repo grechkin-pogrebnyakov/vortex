@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Name        : kernel.cuh
+ Author      : Sergey Grechkin-Pogrebnyakov
+ Version     : Feb. 22, 2014
+ Copyright   : All rights reserved
+ Description : kernel header of vortex project
+ ============================================================================
+ */
+
 #ifndef KERNEL_CUH_
 #define KERNEL_CUH_
 

@@ -7,16 +7,17 @@
  Description : main file of vortex project
  ============================================================================
  */
+
 #include "main.h"
 #include "unita.h"
 
 int main() {
     using namespace std;
     int cnt = 0;
-    size_t birth;                                                   // расширенное количество рождаемых ВЭ
-    double rash;                                                    // (кратно BLOCK_SIZE)
-	size_t p = 0;												// количество точек рождения ВЭ
-    cudaError_t cuerr;												// ошибки CUDA
+    size_t birth;                                                   // СЂР°СЃС€РёСЂРµРЅРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ СЂРѕР¶РґР°РµРјС‹С… Р’Р­
+    double rash;                                                    // (РєСЂР°С‚РЅРѕ BLOCK_SIZE)
+	size_t p = 0;												// РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕС‡РµРє СЂРѕР¶РґРµРЅРёСЏ Р’Р­
+    cudaError_t cuerr;												// РѕС€РёР±РєРё CUDA
     cudaDeviceReset();
     load_profile(panels_host, p);
 	int menu = 0;
@@ -51,9 +52,9 @@ int main() {
         }
 	}
 //	n=new size_t;
-	n = 0;															// количество ВЭ
-	size = 0;                                                       // размер массива ВЭ
-	Psp.eps = 0.008;                                                // 
+	n = 0;															// РєРѕР»РёС‡РµСЃС‚РІРѕ Р’Р­
+	size = 0;                                                       // СЂР°Р·РјРµСЂ РјР°СЃСЃРёРІР° Р’Р­
+	Psp.eps = 0.008;                                                //
 	rash = (double)(p) / BLOCK_SIZE;
 	birth = (size_t)(BLOCK_SIZE * ceil(rash));
 
@@ -84,12 +85,12 @@ int main() {
 	TVctr Nm={1.4121356,-1.4121356};
 	I_0(aa, bb,Nm, rr, 0.001, 20, rrr,rrr1);
 
-//	d=new TVars[size];												// характерное расстояние до 3-х ближайших ВЭ (host)
+//	d=new TVars[size];												// С…Р°СЂР°РєС‚РµСЂРЅРѕРµ СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ 3-С… Р±Р»РёР¶Р°Р№С€РёС… Р’Р­ (host)
 */
 //	save_matr(M, birth + 1, "M.txt");
     F_p_host.v[0] = 0.0;
     F_p_host.v[1] = 0.0;
-    // выделение памяти и копирование на device
+    // РІС‹РґРµР»РµРЅРёРµ РїР°РјСЏС‚Рё Рё РєРѕРїРёСЂРѕРІР°РЅРёРµ РЅР° device
 	cuerr=cudaMalloc((void**)&V_inf_device, sizeof(TVctr));
 	cuerr=cudaMalloc((void**)&d_g_device, sizeof(TVars));
     cuerr=cudaMalloc((void**)&Momentum_device, sizeof(TVars));
@@ -102,7 +103,7 @@ int main() {
     cuerr=cudaMemcpy ( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice);
 	cuerr=cudaMemcpy(M_device, M, (birth+1) * (birth+1) * sizeof(TVars), cudaMemcpyHostToDevice);
 	cuerr=cudaMemcpy(panels_device, panels_host, birth * sizeof(tPanel), cudaMemcpyHostToDevice);
-    // все массивы имеют переменную длину и память для них выделяется в incr_vort_quont()
+    // РІСЃРµ РјР°СЃСЃРёРІС‹ РёРјРµСЋС‚ РїРµСЂРµРјРµРЅРЅСѓСЋ РґР»РёРЅСѓ Рё РїР°РјСЏС‚СЊ РґР»СЏ РЅРёС… РІС‹РґРµР»СЏРµС‚СЃСЏ РІ incr_vort_quont()
 
 	delete[] M;
 	cout << "dt = " << dt << '\n';
@@ -110,9 +111,9 @@ int main() {
 //	cout << "input saving step" << endl;
 //	cin >> sv;
 
-	// увеличение массива ВЭ на INCR_STEP элементов
+	// СѓРІРµР»РёС‡РµРЅРёРµ РјР°СЃСЃРёРІР° Р’Р­ РЅР° INCR_STEP СЌР»РµРјРµРЅС‚РѕРІ
     err = incr_vort_quont(POS_host, POS_device, VEL_host, VEL_device, d_device, size);
-	if (err != 0) 
+	if (err != 0)
 	{
 		cout << "Increase ERROR!\n";
         mem_clear();
@@ -122,7 +123,7 @@ int main() {
     float creation_time = 0.0;
     float speed_time = 0.0;
     float step_time = 0.0;
-	cudaEvent_t start = 0, stop = 0;	    
+	cudaEvent_t start = 0, stop = 0;
 //------------------------------------------------------------------------------------------
     V_inf_host[0] = 0.0;
     cuerr=cudaMemcpy(V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice);
@@ -141,7 +142,7 @@ int main() {
         rashirenie = (double)(n+p)/BLOCK_SIZE;
         s = (int)(BLOCK_SIZE*ceil(rashirenie));
         if (s > size) {
-            //увеличение массива ВЭ на INCR_STEP элементов, если это необходимо
+            //СѓРІРµР»РёС‡РµРЅРёРµ РјР°СЃСЃРёРІР° Р’Р­ РЅР° INCR_STEP СЌР»РµРјРµРЅС‚РѕРІ, РµСЃР»Рё СЌС‚Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ
 		    err=incr_vort_quont(POS_host, POS_device, VEL_host, VEL_device, d_device, size);
             if (err != 0) {
                 cout << "Increase ERROR!" << endl;
@@ -250,10 +251,10 @@ int main() {
 				for( int i=0;i<p;i++)
 				{
 					gg[i]=0.0;
-					
+
 					for (size_t k=0;k<p;k++)
 					{
-						gg[i]+=M[(birth+1)*i+k]*POS[k].g; 
+						gg[i]+=M[(birth+1)*i+k]*POS[k].g;
 					}
 				}
 				for (int i=0;i<p;i++) {
@@ -263,8 +264,8 @@ int main() {
 			}
 			double gamma=0.0;
 
-//			for (int k=(*n)-1.0;k>((*n)-QUANT)-1.0;k--) 
-			for (int k=0;k<(*n);k++) 
+//			for (int k=(*n)-1.0;k>((*n)-QUANT)-1.0;k--)
+			for (int k=0;k<(*n);k++)
 				gamma+=POS[k].g;
 			cout<<" j= "<<j <<";  gamma= "<<gamma<<endl;
 */
@@ -285,7 +286,7 @@ int main() {
 		}
         speed_time += stop_timer(start, stop);
 /*
-		if (j==0)																		//вывод скоростей в файл
+		if (j==0)																		//РІС‹РІРѕРґ СЃРєРѕСЂРѕСЃС‚РµР№ РІ С„Р°Р№Р»
 		{
 			cuerr=cudaMemcpy ( VEL , VDev , (*n)  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
 			stf();
@@ -311,7 +312,7 @@ int main() {
         step_time += stop_timer(start, stop);
 //        cout << n << '\n';
 /*
-		if (j==0)																		//вывод в файл ВЭ после перемещения
+		if (j==0)																		//РІС‹РІРѕРґ РІ С„Р°Р№Р» Р’Р­ РїРѕСЃР»Рµ РїРµСЂРµРјРµС‰РµРЅРёСЏ
 		{
 
 			cuerr=cudaMemcpy ( POS , posDev , (*n)  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
@@ -327,7 +328,7 @@ int main() {
 	cuerr=cudaMemcpy ( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
     cuerr=cudaMemcpy(&F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost);
     cuerr=cudaMemcpy(&Momentum_host, Momentum_device, sizeof(PVortex), cudaMemcpyDeviceToHost);
-    // вывод в файл последнего шага
+    // РІС‹РІРѕРґ РІ С„Р°Р№Р» РїРѕСЃР»РµРґРЅРµРіРѕ С€Р°РіР°
 	save_to_file(POS_host, n,  Psp, st);
     save_forces(F_p_host, Momentum_host, st);
 	cout<<"ready!";
@@ -369,12 +370,12 @@ void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
     strcat(fname,fname2);
     ofstream outfile;
     outfile.open(fname);
-    // Сохранен­ие числа вихрей в пелене
+    // РЎРѕС…СЂР°РЅРµРЅВ­РёРµ С‡РёСЃР»Р° РІРёС…СЂРµР№ РІ РїРµР»РµРЅРµ
     outfile << (size) << endl;
     for (size_t i = 0; i < (size); ++i) {
         outfile<<(int)(i)<<" "<<(double)(Psp.eps)<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<"0.0"<<" "<<"0.0"<<" "<<"0.0"<<" "<<(double)(POS[i].g)<<endl;
-//      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;     
-        // нули пишутся для совместимо­сти с трехмерной­ программой­ и обработчик­ами ConMDV, ConMDV-p и Construct
+//      outfile<<(double)(d[i])<<" "<<(double)(POS[i].r[0])<<" "<<(double)(POS[i].r[1])<<" "<<(double)(POS[i].g)<<endl;
+        // РЅСѓР»Рё РїРёС€СѓС‚СЃСЏ РґР»СЏ СЃРѕРІРјРµСЃС‚РёРјРѕВ­СЃС‚Рё СЃ С‚СЂРµС…РјРµСЂРЅРѕР№В­ РїСЂРѕРіСЂР°РјРјРѕР№В­ Рё РѕР±СЂР°Р±РѕС‚С‡РёРєВ­Р°РјРё ConMDV, ConMDV-p Рё Construct
     }//for i
     outfile.close();
 } //save_to_file

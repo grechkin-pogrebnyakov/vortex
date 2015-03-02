@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Name        : definitions.h
+ Author      : Sergey Grechkin-Pogrebnyakov
+ Version     : Feb. 22, 2014
+ Copyright   : All rights reserved
+ Description : definitions file of vortex project
+ ============================================================================
+ */
+
 #ifndef DEFINITIONS_H_
 #define DEFINITIONS_H_
 
