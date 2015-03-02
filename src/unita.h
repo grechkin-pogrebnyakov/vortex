@@ -5,12 +5,24 @@
 #include <string>
 #endif
 
-#pragma warning(disable: 4996) //чтобы strcpy не выдавал warning
+#pragma warning(disable: 4996) //С‡С‚РѕР±С‹ strcpy РЅРµ РІС‹РґР°РІР°Р» warning
 
 
 //#if !defined itoaxx && __itoaxx
 
 char* itoaxx(int value, char*  str,int radix) {
+#ifdef __linux__
+    char rad_st[3];
+    switch(radix) {
+        case 10: strcpy(rad_st, "%d"); break;
+        case  8: strcpy(rad_st, "%o"); break;
+        case 16: strcpy(rad_st, "%x"); break;
+        default: return NULL;
+    }
+
+
+    snprintf(str, 10, rad_st, value);
+#else
     int  rem = 0;
     int  pos = 0;
     char ch  = '!' ;
@@ -60,8 +72,8 @@ char* itoaxx(int value, char*  str,int radix) {
     //char b[]="ABCD";
     size_t a = strlen(str);
     char *c;
-    c=new(char);	
-    
+    c=new(char);
+
     strcpy(c,str);
     c[a]='\0';
     for(size_t i=0;i<a;i++)
@@ -70,6 +82,7 @@ char* itoaxx(int value, char*  str,int radix) {
 
 
     //return strrev(str);
+#endif
     return str;
     //return c;
 }
