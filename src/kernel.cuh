@@ -164,7 +164,7 @@ __device__ inline TVars Ro2(TVars a0, TVars a1, TVars b0, TVars b1) {
     return (a0 - b0) * (a0 - b0) + (a1 - b1) * (a1 - b1);
 }
 
-__device__ inline TVars Ro2f(float a0, float a1, float b0, float b1) {
+__device__ inline float Ro2f(float a0, float a1, float b0, float b1) {
     return (a0 - b0) * (a0 - b0) + (a1 - b1) * (a1 - b1);
 }
 

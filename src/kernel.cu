@@ -613,40 +613,42 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
 if ( i < 500 ) {
-    TVars y0 = 0.0, y1 = 0.0;
-//	TVars dist2;
-    TVars mnog = 0.0;
-    TVars dist2 = 0.0;
-    // координаты расчётной точки
-    TVars a0 = 0.0, a1 = 0.0;
-    // координаты воздействующей точки
-    __shared__ TVars b_sh_0 [BLOCK_SIZE];
-    __shared__ TVars b_sh_1 [BLOCK_SIZE];
-    // интенсивность воздействующей точки
-    __shared__ TVars g [BLOCK_SIZE];
-    a0=Contr_points[i].v[0];
-    a1=Contr_points[i].v[1];
-    for (int f = 0 ; f < n ; f += BLOCK_SIZE) {
-        b_sh_0[threadIdx.x]=pos[threadIdx.x+f].r[0];
-        b_sh_1[threadIdx.x]=pos[threadIdx.x+f].r[1];
-        g[threadIdx.x]=pos[threadIdx.x+f].g;
+        float y0 = 0.0f, y1 = 0.0f;
+//        TVars dist2;
+        float mnog = 0.0f;
+        float dist2 = 0.0f;
+// координаты расчётной точки
+        float a0 = 0.0f, a1 = 0.0f;
+// координаты воздействующей точки
+        __shared__ float b_sh_0 [BLOCK_SIZE];
+        __shared__ float b_sh_1 [BLOCK_SIZE];
+// интенсивность воздействующей точки
+        __shared__ float g [BLOCK_SIZE];
+        a0 = (float)Contr_points[i].v[0];
+        a1 = (float)Contr_points[i].v[1];
+        for (int f = 0 ; f < n ; f += BLOCK_SIZE) {
+            b_sh_0[threadIdx.x] = (float)pos[threadIdx.x+f].r[0];
+            b_sh_1[threadIdx.x] = (float)pos[threadIdx.x+f].r[1];
+            g[threadIdx.x] = (float)pos[threadIdx.x+f].g;
+
+            __syncthreads();
+
+            for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
+                dist2 = Ro2f(a0, a1, b_sh_0[j], b_sh_1[j]);
+//                if (dist2 < EPS2) dist2=EPS2;
+                dist2 = fmaxf(dist2, EPS2);
+                mnog = g[j] / dist2;
+                y1 +=  mnog * (a0 - b_sh_0[j]);
+                y0 += -mnog * (a1 - b_sh_1[j]);
+            }//j
+            __syncthreads();
+        }//f
+        V[i + (*n_v)].v[0] = ( (TVars)y0 )/(2*M_PI) + (*V_inf)[0];
+        V[i + (*n_v)].v[1] = ( (TVars)y1 )/(2*M_PI) + (*V_inf)[1];
+//        V[i].v[k] =  (*V_inf)[k];
         __syncthreads();
-        for (int j = 0 ; j < BLOCK_SIZE ; ++j) {		
-            dist2 = Ro2(a0, a1, b_sh_0[j], b_sh_1[j]);
-	//		if (dist2 < EPS2) dist2=EPS2;
-            dist2 = max(dist2, EPS2);
-            mnog=g[j] / dist2;
-            y1 +=  mnog * (a0 - b_sh_0[j]);	
-            y0 += -mnog * (a1 - b_sh_1[j]);
-        }//j
-        __syncthreads();
-    }//f
-    V[i + (*n_v)].v[0] = y0/(2*M_PI) + (*V_inf)[0];
-    V[i + (*n_v)].v[1] = y1/(2*M_PI) + (*V_inf)[1];
-//	V[i].v[k] =  (*V_inf)[k];
-    __syncthreads(); 
-    if (i == 1) {
-        (*n_v)+=500;
+        if (i == 1) {
+            (*n_v) += 500;
+        }
     }
-}
 }
