@@ -142,7 +142,7 @@ __device__ __host__ inline TVars Panel_length(tPanel *panel, size_t j) {
     return panel[j].length;
 }
 
-__device__ __host__ inline TVars Ro2(TVctr a, TVctr b) { 
+__device__ __host__ inline TVars Ro2(TVctr a, TVctr b) {
 	TVars x;
 	x = (a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]);
     return x;
@@ -156,11 +156,11 @@ __device__ __host__ inline TVars sp(TVars a0, TVars a1, TVars b0, TVars b1) {
    return a0*b0+a1*b1;
 }
 
-__device__ inline TVars Ro2(TVars a0, TVars a1, TVars b0, TVars b1) { 
+__device__ inline TVars Ro2(TVars a0, TVars a1, TVars b0, TVars b1) {
     return (a0 - b0) * (a0 - b0) + (a1 - b1) * (a1 - b1);
 }
 
-__device__ inline TVars Ro2f(float a0, float a1, float b0, float b1) { 
+__device__ inline float Ro2f(float a0, float a1, float b0, float b1) {
     return (a0 - b0) * (a0 - b0) + (a1 - b1) * (a1 - b1);
 }
 
