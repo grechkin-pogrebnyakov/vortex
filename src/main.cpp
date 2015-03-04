@@ -20,7 +20,7 @@ int main() {
     cudaError_t cuerr;												// ошибки CUDA
     cudaDeviceReset();
     load_profile(panels_host, p);
-	int menu = 1;
+	int menu = 2;
 	cout << "1 - generate matrix\n2 - load matrix\n";
 	//cin >> menu;
     //cin.get();
