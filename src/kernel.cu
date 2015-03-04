@@ -2,7 +2,7 @@
  ============================================================================
  Name        : kernel.cu
  Author      : Sergey Grechkin-Pogrebnyakov
- Version     : Feb. 22, 2014
+ Version     : Mar. 4, 2015
  Copyright   : All rights reserved
  Description : kernel file of vortex project
  ============================================================================
@@ -16,41 +16,40 @@
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
     TVars a = 0.0;
-	pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5; 
-	pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5; 
-	pos[s+ind].g = a; 
+	pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5;
+	pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5;
+	pos[s+ind].g = a;
 }
 
 __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
     R_p[i] = 0.0;
-    TVars y0 = 0.0, y1 = 0.0;
+    float y0 = 0.0f, y1 = 0.0f;
 //	TVars dist2;
-    TVars mnog = 0.0;
+    float mnog = 0.0f;
     // координаты и нормали расчётной точки
-    TVars a_left0 = 0.0, a_left1 = 0.0;
-    TVars a_right0 = 0.0, a_right1 = 0.0;
-    TVars d0 = 0.0, d1 = 0.0;
-    TVars kd0 = 0.0, kd1 = 0.0;
-    TVars tau0 = 0.0, tau1 = 0.0;
-    TVars s_00 = 0.0, s_01 = 0.0;
-    TVars s_10 = 0.0, s_11 = 0.0;
-    TVars z = 0.0;
-    TVars alpha = 0.0, beta = 0.0;
-    
+    float a_left0 = 0.0f, a_left1 = 0.0f;
+    float a_right0 = 0.0f, a_right1 = 0.0f;
+    float d0 = 0.0f, d1 = 0.0f;
+    float kd0 = 0.0f, kd1 = 0.0f;
+    float tau0 = 0.0f, tau1 = 0.0f;
+    float s_00 = 0.0f, s_01 = 0.0f;
+    float s_10 = 0.0f, s_11 = 0.0f;
+    float z = 0.0f;
+    float alpha = 0.0f, beta = 0.0f;
 
     // координаты воздействующей точки
-    __shared__ TVars b_sh_0 [BLOCK_SIZE];
-    __shared__ TVars b_sh_1 [BLOCK_SIZE];
+    __shared__ float b_sh_0 [BLOCK_SIZE];
+    __shared__ float b_sh_1 [BLOCK_SIZE];
     // интенсивность воздействующей точки
-    __shared__ TVars g [BLOCK_SIZE];
+    __shared__ float g [BLOCK_SIZE];
 
-    a_left0 = panels[i].left[0];
-    a_left1 = panels[i].left[1];
-    a_right0 = panels[i].right[0];
-    a_right1 = panels[i].right[1];
-    tau0 = panels[i].tang[0];
-    tau1 = panels[i].tang[1];
+    a_left0 = (float)panels[i].left[0];
+    a_left1 = (float)panels[i].left[1];
+    a_right0 = (float)panels[i].right[0];
+    a_right1 = (float)panels[i].right[1];
+    tau0 = (float)panels[i].tang[0];
+    tau1 = (float)panels[i].tang[1];
 
     d0 = a_right0 - a_left0;
     d1 = a_right1 - a_left1;
@@ -59,11 +58,11 @@ __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size
     kd1 = d0;
 
     for (int f = 0 ; f < n_vort ; f += BLOCK_SIZE) {
-        b_sh_0[threadIdx.x]=pos[threadIdx.x+f].r[0];
-        b_sh_1[threadIdx.x]=pos[threadIdx.x+f].r[1];
-        g[threadIdx.x]=pos[threadIdx.x+f].g;
+        b_sh_0[threadIdx.x] = (float)pos[threadIdx.x+f].r[0];
+        b_sh_1[threadIdx.x] = (float)pos[threadIdx.x+f].r[1];
+        g[threadIdx.x] = (float)pos[threadIdx.x+f].g;
         __syncthreads();
-        for (int j = 0 ; j < BLOCK_SIZE ; ++j) {		
+        for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
             s_00 = a_left0 - b_sh_0[j];
             s_01 = a_left1 - b_sh_1[j];
 
@@ -72,21 +71,21 @@ __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size
 
             z = d0 * s_01 - d1 * s_00;
 
-            alpha = atan( sp( s_00, s_01, d0, d1 ) / z )\
-                   -atan( sp( s_10, s_11, d0, d1 ) / z );
+            alpha = atanf( spf( s_00, s_01, d0, d1 ) / z )\
+                   -atanf( spf( s_10, s_11, d0, d1 ) / z );
 
-            beta = 0.5 * log( sp( s_10, s_11, s_10, s_11 )\
-                             /sp( s_00, s_01, s_00, s_01 ) );
+            beta = 0.5 * logf( spf( s_10, s_11, s_10, s_11 )\
+                             /spf( s_00, s_01, s_00, s_01 ) );
 
-            y0 += g[j] * ( alpha * d0 + beta * kd0 );	
+            y0 += g[j] * ( alpha * d0 + beta * kd0 );
             y1 += g[j] * ( alpha * d1 + beta * kd1 );
         }//j
         __syncthreads();
     }//f
 
-    mnog = 1 / (2 * M_PI * sp( d0, d1, d0, d1 ) );
+    mnog = 1 / (2 * M_PI * spf( d0, d1, d0, d1 ) );
 
-    R_p[i] = -( ( mnog * y0 + (*V_inf)[0] ) * tau0 + ( mnog * y1 + (*V_inf)[1] ) * tau1 );
+    R_p[i] = -(TVars)( ( mnog * y0 + (float)(*V_inf)[0] ) * tau0 + ( mnog * y1 + (float)(*V_inf)[1] ) * tau1 );
 //    R_p[i] = -( (  (*V_inf)[0] ) * tau0 + ( (*V_inf)[1] ) * tau1 );
 //	V[i].v[k] =  (*V_inf)[k];
     __syncthreads(); 
