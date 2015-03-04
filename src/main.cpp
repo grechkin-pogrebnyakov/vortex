@@ -2,7 +2,7 @@
  ============================================================================
  Name        : main.cpp
  Author      : Sergey Grechkin-Pogrebnyakov
- Version     : Feb. 22, 2014
+ Version     : Feb. 22, 2015
  Copyright   : All rights reserved
  Description : main file of vortex project
  ============================================================================

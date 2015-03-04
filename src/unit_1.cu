@@ -2,7 +2,7 @@
  ============================================================================
  Name        : unit_1.cu
  Author      : Sergey Grechkin-Pogrebnyakov
- Version     : Feb. 22, 2014
+ Version     : Mar. 02, 2015
  Copyright   : All rights reserved
  Description : unit_1 file of vortex project
  ============================================================================
@@ -37,14 +37,11 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
             delete[] L;
         }
     }
-    TVars dist2 = 0.0;
     TVctr a_0 = {0.0, 0.0};
     TVctr a_1 = {0.0, 0.0};
     TVctr b_0 = {0.0, 0.0};
     TVctr b_1 = {0.0, 0.0};
-    TVars d_i_2 = 0.0;
     TVctr d_i = {0.0, 0.0};
-    TVars d_j_2 = 0.0;
     TVctr d_j = {0.0, 0.0};
     TVctr p_1, p_2, s_1, s_2;
     TVars q1_1, q1_2, q1_3, q2_1, q2_2, q2_3, z_1, z_2, z_3;

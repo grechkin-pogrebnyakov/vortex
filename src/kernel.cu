@@ -2,7 +2,7 @@
  ============================================================================
  Name        : kernel.cu
  Author      : Sergey Grechkin-Pogrebnyakov
- Version     : Mar. 4, 2015
+ Version     : Mar. 04, 2015
  Copyright   : All rights reserved
  Description : kernel file of vortex project
  ============================================================================

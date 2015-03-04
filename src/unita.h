@@ -85,9 +85,9 @@ char* itoaxx(int value, char*  str,int radix) {
 
 
     //return strrev(str);
-#endif
+#endif // __linux__
     return str;
     //return c;
 }
 
-#endif
+#endif // UNITA_H_

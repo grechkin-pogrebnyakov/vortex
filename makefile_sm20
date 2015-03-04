@@ -1,3 +1,8 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+
 RM := rm -rf
 
 # All of the sources participating in the build are defined here
@@ -27,15 +32,15 @@ CPP_DEPS += \
 src/%.o: ../src/%.cu
 	@echo 'Building file: $<'
 	@echo 'Invoking: NVCC Compiler'
-	/usr/local/cuda/bin/nvcc -O2 -gencode arch=compute_35,code=sm_35  -odir "src" -M -o "$(@:%.o=%.d)" "$<"
-	/usr/local/cuda/bin/nvcc -O2 --compile --relocatable-device-code=false -gencode arch=compute_35,code=compute_35 -gencode arch=compute_35,code=sm_35  -x cu -o  "$@" "$<" -w
+	/usr/local/cuda/bin/nvcc -O2 -gencode arch=compute_20,code=sm_20  -odir "src" -M -o "$(@:%.o=%.d)" "$<"
+	/usr/local/cuda/bin/nvcc -O2 --compile --relocatable-device-code=false -gencode arch=compute_20,code=compute_20 -gencode arch=compute_20,code=sm_20  -x cu -o  "$@" "$<" -w
 	@echo 'Finished building: $<'
 	@echo ' '
 
 src/%.o: ../src/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: NVCC Compiler'
-	/usr/local/cuda/bin/nvcc -O2 -gencode arch=compute_35,code=sm_35  -odir "src" -M -o "$(@:%.o=%.d)" "$<"
+	/usr/local/cuda/bin/nvcc -O2 -gencode arch=compute_20,code=sm_20  -odir "src" -M -o "$(@:%.o=%.d)" "$<"
 	/usr/local/cuda/bin/nvcc -O2 --compile  -x c++ -o  "$@" "$<" -w
 	@echo 'Finished building: $<'
 	@echo ' '
@@ -75,7 +80,7 @@ all: vortex
 vortex: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: NVCC Linker'
-	/usr/local/cuda/bin/nvcc --cudart static --relocatable-device-code=false -gencode arch=compute_35,code=compute_35 -gencode arch=compute_35,code=sm_35 -link -o  "vortex" $(OBJS) $(USER_OBJS) $(LIBS)
+	/usr/local/cuda/bin/nvcc --cudart static --relocatable-device-code=false -gencode arch=compute_20,code=compute_20 -gencode arch=compute_20,code=sm_20 -link -o  "vortex" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

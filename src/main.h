@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Name        : main.h
+ Author      : Sergey Grechkin-Pogrebnyakov
+ Version     : Feb. 22, 2015
+ Copyright   : All rights reserved
+ Description : main header of vortex project
+ ============================================================================
+ */
+
 #ifndef MAIN_H_
 #define MAIN_H_
 
@@ -55,4 +65,4 @@ void save_forces(PVortex F_p, TVars M, int step);
 // загрузка профиля из файла
 void load_profile(tPanel *&panels, size_t &p);
 
-#endif
+#endif // MAIN_H_

@@ -2,7 +2,7 @@
  ============================================================================
  Name        : kernel.cuh
  Author      : Sergey Grechkin-Pogrebnyakov
- Version     : Feb. 22, 2014
+ Version     : Mar. 04, 2015
  Copyright   : All rights reserved
  Description : kernel header of vortex project
  ============================================================================
@@ -180,4 +180,4 @@ __device__ bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int* hitpan
 // вычисление скоростей в контрольных точках
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v);
 
-#endif
+#endif // KERNEL_CUH_

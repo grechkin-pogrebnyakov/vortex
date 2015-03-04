@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Name        : definitions.h
+ Author      : Sergey Grechkin-Pogrebnyakov
+ Version     : Feb. 20, 2015
+ Copyright   : All rights reserved
+ Description : definitions file of vortex project for Profile_file_plas
+ ============================================================================
+ */
+
 #ifndef DEFINITIONS_H_
 #define DEFINITIONS_H_
 
@@ -97,4 +107,4 @@ struct tPanel {
 	}
 };// panel
 
-#endif
+#endif // DEFINITIONS_H_
