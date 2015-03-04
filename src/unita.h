@@ -1,3 +1,5 @@
+#ifndef UNITA_H_
+#define UNITA_H_
 #pragma once
 #include "string.h"
 
@@ -9,8 +11,6 @@
 #pragma warning(disable: 4996) //чтобы strcpy не выдавал warning
 
 
-#ifndef UNITA_H_
-#define UNITA_H_
 //#if !defined itoaxx && __itoaxx
 
 char* itoaxx(int value, char*  str,int radix) {
@@ -90,4 +90,4 @@ char* itoaxx(int value, char*  str,int radix) {
     //return c;
 }
 
-//#endif
+#endif
