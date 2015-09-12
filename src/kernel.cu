@@ -13,12 +13,12 @@
 #include "device_functions.h"
 #include "math_functions.h"
 
-__global__ void zero_Kernel(float *randoms, Vortex *pos, int s ) {
+__global__ void zero_Kernel( float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
     TVars a = 0.0;
-	pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5;
-	pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5;
-	pos[s+ind].g = a;
+    pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5;
+    pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5;
+    pos[s+ind].g = a;
 }
 
 __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels) {
@@ -260,7 +260,7 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
         if ((r < 5 * dL) && (r > 0.1 * dL)) {
             Norm_0 = -N_contr_xf(panels, f);
             Norm_1 = -N_contr_yf(panels, f);
-            I_0_I_3f(Ra_0, Ra_1, Rb_0, Rb_1, Norm_0, Norm_1, a0, a1, dL, dd, N_OF_POINTS, RES_0, RES_3_0, RES_3_1);
+            I_0_I_3f(Ra_0, Ra_1, Rb_0, Rb_1, Norm_0, Norm_1, a0, a1, dL, dd, N_OF_POINTS, &RES_0, &RES_3_0, &RES_3_1);
             II_0 += (-dd) * RES_0;
             II_3_0 -= RES_3_0;
             II_3_1 -= RES_3_1;
@@ -295,7 +295,7 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
         if (i >= n - QUANT) {
             F_p[i].v[0] = pos[i].g * (-pos[i].r[1]);
             F_p[i].v[1] = pos[i].g * ( pos[i].r[0]);
-            M[i] = pos[i].g * Ro2(pos[i].r, rc);
+            M[i] = pos[i].g * Ro2_vec(pos[i].r, rc);
         }
 	    //__syncthreads;
 
@@ -307,7 +307,7 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 	    if ( (pos[i].g != 0) && (hitting(panels, r_new_0, r_new_1, pos[i].r, &hitpan))) {
             F_p[i].v[0] -= pos[i].g * (-panels[hitpan].contr[1]);
             F_p[i].v[1] -= pos[i].g * ( panels[hitpan].contr[0]);
-            M[i] -= pos[i].g * Ro2(panels[hitpan].contr, rc);
+            M[i] -= pos[i].g * Ro2_vec(panels[hitpan].contr, rc);
 		    r_new_0 =  2e+5;
 		    r_new_1 =  2e+5;
 		    d_g = pos[i].g;
@@ -478,14 +478,14 @@ __device__ __host__ TVars N_contr_y(size_t n, size_t i) {
 }
 */
 
-inline __device__ void I_0_I_3(TVars &Ra_0, TVars &Ra_1, TVars &Rb_0, TVars &Rb_1, TVars &Norm_0, TVars &Norm_1, TVars &Rj_0, TVars &Rj_1,
-                                TVars &dL, TVars &d, size_t N,TVars &RES_0, TVars &RES_3_0, TVars &RES_3_1) {
+inline __device__ void I_0_I_3(TVars Ra_0, TVars Ra_1, TVars Rb_0, TVars Rb_1, TVars Norm_0, TVars Norm_1, TVars Rj_0, TVars Rj_1,
+                                TVars dL, TVars d, size_t N,TVars *RES_0, TVars *RES_3_0, TVars *RES_3_1) {
     TVars Rk_0 = 0.0, Rk_1 = 0.0;
     TVars Eta_0 = 0.0, Eta_1 = 0.0;
     TVars dR_0 = 0.0, dR_1 = 0.0;
-    RES_0 = 0.0;
-    RES_3_0 = 0.0;
-    RES_3_1 = 0.0;
+    *RES_0 = 0.0;
+    *RES_3_0 = 0.0;
+    *RES_3_1 = 0.0;
     dR_0 = (Rb_0 - Ra_0) / N;
     dR_1 = (Rb_1 - Ra_1) / N;
     TVars delt = dL / N;
@@ -495,21 +495,21 @@ inline __device__ void I_0_I_3(TVars &Ra_0, TVars &Ra_1, TVars &Rb_0, TVars &Rb_
         Eta_0 = (Rj_0 - Rk_0) / d;
         Eta_1 = (Rj_1 - Rk_1) / d;
         TVars mod_eta = sqrt(Eta_0 * Eta_0 + Eta_1 * Eta_1);
-        RES_0 += (Eta_0 * Norm_0 + Eta_1 * Norm_1) / (Eta_0 * Eta_0 + Eta_1 * Eta_1) * 
+        *RES_0 += (Eta_0 * Norm_0 + Eta_1 * Norm_1) / (Eta_0 * Eta_0 + Eta_1 * Eta_1) * 
             (mod_eta + 1) * exp(-mod_eta) * delt;
-        RES_3_0 += Norm_0 * exp(-mod_eta) * delt;
-        RES_3_1 += Norm_1 * exp(-mod_eta) * delt;
+        *RES_3_0 += Norm_0 * exp(-mod_eta) * delt;
+        *RES_3_1 += Norm_1 * exp(-mod_eta) * delt;
     }
 }
 
-inline __device__ void I_0_I_3f(float &Ra_0, float &Ra_1, float &Rb_0, float &Rb_1, float &Norm_0, float &Norm_1, float &Rj_0, float &Rj_1,
-                                float &dL, float &d, size_t N, float &RES_0, float &RES_3_0, float &RES_3_1) {
+inline __device__ void I_0_I_3f(float Ra_0, float Ra_1, float Rb_0, float Rb_1, float Norm_0, float Norm_1, float Rj_0, float Rj_1,
+                                float dL, float d, size_t N, float *RES_0, float *RES_3_0, float *RES_3_1) {
     float Rk_0 = 0.0f, Rk_1 = 0.0f;
     float Eta_0 = 0.0f, Eta_1 = 0.0f;
     float dR_0 = 0.0f, dR_1 = 0.0f;
-    RES_0 = 0.0f;
-    RES_3_0 = 0.0f;
-    RES_3_1 = 0.0f;
+    *RES_0 = 0.0f;
+    *RES_3_0 = 0.0f;
+    *RES_3_1 = 0.0f;
     dR_0 = (Rb_0 - Ra_0) / N;
     dR_1 = (Rb_1 - Ra_1) / N;
     float delt = dL / N;
@@ -519,10 +519,10 @@ inline __device__ void I_0_I_3f(float &Ra_0, float &Ra_1, float &Rb_0, float &Rb
         Eta_0 = (Rj_0 - Rk_0) / d;
         Eta_1 = (Rj_1 - Rk_1) / d;
         TVars mod_eta = sqrtf(Eta_0 * Eta_0 + Eta_1 * Eta_1);
-        RES_0 += (Eta_0 * Norm_0 + Eta_1 * Norm_1) / (Eta_0 * Eta_0 + Eta_1 * Eta_1) * 
+        *RES_0 += (Eta_0 * Norm_0 + Eta_1 * Norm_1) / (Eta_0 * Eta_0 + Eta_1 * Eta_1) * 
             (mod_eta + 1) * expf(-mod_eta) * delt;
-        RES_3_0 += Norm_0 * expf(-mod_eta) * delt;
-        RES_3_1 += Norm_1 * expf(-mod_eta) * delt;
+        *RES_3_0 += Norm_0 * expf(-mod_eta) * delt;
+        *RES_3_1 += Norm_1 * expf(-mod_eta) * delt;
     }
 }
 

@@ -13,12 +13,16 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <iostream>
-#include <fstream>
+#include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include "cuda.h"
 #include "cuda_runtime.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <errno.h>
 
+#define _strncmp(_str_, _etalon_) strncmp(_str_, _etalon_, sizeof(_etalon_) - 1 )
 
 #define BLOCK_SIZE      (32)                                // размер блока дл€ всех вычислений на GPU, кроме рождени€ ¬Ё
 #define QUANT           (2576)                              // количество точек рождени€ ¬Ё
@@ -54,23 +58,21 @@ typedef double TVars;									    // тип данных, примен€емый дл€ ¬—≈’ чисел с пл
 typedef TVars TVctr[2];								    // вектор
 
                                                             // тип данных ¬Ё
-struct Vortex{
-    TVars r[2];  //положение
-    TVars g;     //интенсивность
-    Vortex(): g(0.0){ r[0] = 0.0; r[1] = 0.0;}
-};//POS
+typedef struct Vortex{
+    TVars r[2];         //положение
+    TVars g;        //интенсивность
+} Vortex;//POS
                                                             // тип данных данных скоростей ¬Ё
-struct PVortex{
+typedef struct PVortex{
     TVars v[2]; //скорость
-    PVortex() {v[0] = 0.0; v[1] = 0.0;}
-};//VEL
+} PVortex;//VEL
 						                                    // тип данных с точностью
-struct Eps_Str{
+typedef struct Eps_Str{
     TVars eps; //
-};
+} Eps_Str;
 
 
-struct tPanel {
+typedef struct tPanel {
 	// number
 	unsigned int n;
 	// left side
@@ -91,20 +93,24 @@ struct tPanel {
 	unsigned int n_of_lpanel;
 	// number of right panel
 	unsigned int n_of_rpanel;
-	tPanel():n(0), length(0), n_of_lpanel(0), n_of_rpanel(0) {
-		left[0] = 0.0;
-		left[1] = 0.0;
-		right[0] = 0.0;
-		right[1] = 0.0;
-		contr[0] = 0.0;
-		contr[1] = 0.0;
-		birth[0] = 0.0;
-		birth[1] = 0.0;
-		norm[0] = 0.0;
-		norm[1] = 0.0;
-		tang[0] = 0.0;
-		tang[1] = 0.0;
-	}
-};// panel
+} tPanel;// panel
+
+struct conf_t {
+    size_t steps, saving_step;
+    TVars ddt;
+    size_t inc_step;
+    TVars viscosity, rho;
+    TVctr v_inf;
+    size_t n_of_points;
+    TVars x_max, x_min, y_max, y_min;
+    TVars ve_size;
+    size_t n_col;
+    size_t n_dx, n_dy;
+    TVctr rc;
+    char pr_file[256];
+    size_t birth_quant;
+    TVars r_col_diff_sign, r_col_same_sign;
+    unsigned matrix_load;
+};
 
 #endif // DEFINITIONS_H_

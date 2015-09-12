@@ -16,6 +16,10 @@ output*/
 tags
 *.a
 *.o
+*.swp
+vortex
+M.txt
+L.txt
 
 # User-specific files
 *.suo

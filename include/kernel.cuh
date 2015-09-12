@@ -11,6 +11,9 @@
 #ifndef KERNEL_CUH_
 #define KERNEL_CUH_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "definitions.h"
 
 // CUDA яƒ–ќ обнуление ¬Ё, начина€ с элемента s, при этом у них случайные координаты
@@ -142,15 +145,16 @@ __device__ __host__ inline TVars Panel_length(tPanel *panel, size_t j) {
     return panel[j].length;
 }
 
-__device__ __host__ inline TVars Ro2(TVctr a, TVctr b) {
+__device__ __host__ inline TVars Ro2_vec(TVctr a, TVctr b) {
 	TVars x;
 	x = (a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]);
     return x;
 }
 
-__device__ __host__ inline TVars sp(TVctr a, TVctr b) {
+__device__ __host__ inline TVars sp_vec(TVctr a, TVctr b) {
    return a[0]*b[0]+a[1]*b[1];
 }
+
 
 __device__ __host__ inline TVars sp(TVars a0, TVars a1, TVars b0, TVars b1) {
    return a0*b0+a1*b1;
@@ -169,15 +173,18 @@ __device__ inline float Ro2f(float a0, float a1, float b0, float b1) {
 }
 
 // ¬числение I_0, I_3
-__device__ void I_0_I_3(TVars &Ra_0, TVars &Ra_1, TVars &Rb_0, TVars &Rb_1, TVars &Norm_0, TVars &Norm_1, TVars &Rj_0, TVars &Rj_1,
-                                TVars &dL, TVars &d, size_t N,TVars &RES_0, TVars &RES_3_0, TVars &RES_3_1);
+__device__ void I_0_I_3(TVars Ra_0, TVars Ra_1, TVars Rb_0, TVars Rb_1, TVars Norm_0, TVars Norm_1, TVars Rj_0, TVars Rj_1,
+                                TVars dL, TVars d, size_t N,TVars *RES_0, TVars *RES_3_0, TVars *RES_3_1);
 
-__device__ void I_0_I_3f(float &Ra_0, float &Ra_1, float &Rb_0, float &Rb_1, float &Norm_0, float &Norm_1, float &Rj_0, float &Rj_1,
-                                float &dL, float &d, size_t N, float &RES_0, float &RES_3_0, float &RES_3_1);
+__device__ void I_0_I_3f(float Ra_0, float Ra_1, float Rb_0, float Rb_1, float Norm_0, float Norm_1, float Rj_0, float Rj_1,
+                                float dL, float d, size_t N, float *RES_0, float *RES_3_0, float *RES_3_1);
 
 __device__ bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int* hitpan);
 
 // вычисление скоростей в контрольных точках
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v);
 
+#ifdef __cplusplus
+}
+#endif
 #endif // KERNEL_CUH_
