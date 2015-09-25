@@ -11,48 +11,28 @@
 #ifndef DEFINITIONS_H_
 #define DEFINITIONS_H_
 
-#define _USE_MATH_DEFINES
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-#include "cuda.h"
-#include "cuda_runtime.h"
-#include <stdbool.h>
-#include <stdint.h>
-#include <errno.h>
-
 #define _strncmp(_str_, _etalon_) strncmp(_str_, _etalon_, sizeof(_etalon_) - 1 )
 
+#define LEV_AHTUNG  0
+#define LEV_ERROR   1
+#define LEV_WARN    2
+#define LEV_INFO    3
+#define LEV_DEBUG   4
+
+#define LOG_BUF_SIZ 100 * 1024
+
+#define log_lev_file( lev, file, line, fmt, ... ) log_lev( lev, fmt " (%s:%d)", ##__VA_ARGS__, file, line )
+
+#define log_a( fmt, ... ) log_lev( LEV_AHTUNG, fmt " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__ )
+#define log_e( fmt, ... ) log_lev( LEV_ERROR, fmt " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__ )
+#define log_w( fmt, ... ) log_lev( LEV_WARN, fmt " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__ )
+#define log_i( fmt, ... ) log_lev( LEV_INFO, fmt " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__ )
+#define log_d( fmt, ... ) log_lev( LEV_DEBUG, fmt " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__ )
+
+#define cuda_safe( cuerr ) cusafe( cuerr, __FILE__, __LINE__ )
+
 #define BLOCK_SIZE      (32)                                // размер блока дл€ всех вычислений на GPU, кроме рождени€ ¬Ё
-#define QUANT           (2576)                              // количество точек рождени€ ¬Ё
-#define R               (0.5)                               // радиус обтекаемого круга
-#define DELT            (1E-12)                             // 
-#define dt              (0.001)                            // шаг по времени
-#define INCR_STEP       (8192)                              // шаг увеличени€ размера массива ¬Ё
-#define VINF            {1.0, 0.0}                          // скорость набегающего потока
-#define EPS             (0.0005)                            // радиус ¬Ё
-#define EPS2            (EPS * EPS)                         // квадрат радиуса ¬Ё
-#define R_COL_1         (16.0 * EPS2 / 9.0)                  // радиус коллапса дл€ ¬Ё разных знаков
-#define R_COL_2			(4.0 * EPS2 / 9.0)					// радиус коллапса дл€ ¬Ё одного знака
-#define MAX_VE_G		(0.00026)								// максимальна€ интенсивность ¬Ё после коллапса
-
-#define STEPS           (3500)                            // количество шагов по времени
-#define SAVING_STEP     (10)                                // шаг сохранени€
-#define VISCOSITY       (0.001)                             // коэффициент в€зкости
-#define N_OF_POINTS     (20.0)                              // число разбиений панели при вычислении интеграла
-#define COUNT_AREA      (10.0)                              // граница отрисовки
-#define NCOL            (2)                                 // количество проходов в коллапсе
-
-#define Ndx             (10 * (COUNT_AREA + 2))				// количество €чеек по оси x (дл€ коллапса)
-#define Ndy             (200)								// количество €чеек по оси y (дл€ коллапса)
-#define HX              ((COUNT_AREA + 2.0)/Ndx)            // размер €чейки по оси x
-#define HY              (20.0/Ndy)                          // размер €чейки по оси y
-#define RHO             (1.0)                               // плотность
-
-#define RC              {0.0,0.0}							// точка, относительно которой считаем момент
-#define PR_FILE			"Profile_file_plas_2576.txt"		// файл с профилем
-//#define PR_FILE			"Profile_file_krug_1000.txt"		// файл с профилем
+#define DELT            (1E-12)                             // zero threshold
 
 typedef double TVars;									    // тип данных, примен€емый дл€ ¬—≈’ чисел с плавающей точкой
 typedef TVars TVctr[2];								    // вектор
@@ -97,7 +77,7 @@ typedef struct tPanel {
 
 struct conf_t {
     size_t steps, saving_step;
-    TVars ddt;
+    TVars dt;
     size_t inc_step;
     TVars viscosity, rho;
     TVctr v_inf;
@@ -105,12 +85,18 @@ struct conf_t {
     TVars x_max, x_min, y_max, y_min;
     TVars ve_size;
     size_t n_col;
-    size_t n_dx, n_dy;
-    TVctr rc;
+    size_t h_col_x, h_col_y;
+    TVars rc_x;
+    TVars rc_y;
     char pr_file[256];
     size_t birth_quant;
     TVars r_col_diff_sign, r_col_same_sign;
     unsigned matrix_load;
+    size_t v_inf_incr_steps;
+    TVars max_ve_g;
+    char log_file[256];
+    char config_file[256];
+    uint8_t log_level;
 };
 
 #endif // DEFINITIONS_H_

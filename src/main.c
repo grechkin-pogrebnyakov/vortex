@@ -14,12 +14,7 @@
 struct conf_t conf;
 FILE *outfile222 = NULL;
 int current_step = 0;
-const TVars TVarsZero = 0.0;                    // для обнуления переменных в памяти GPU
-TVars       *M = NULL;                          // "матрица формы" (host)
 size_t      n = 0;                              // количество ВЭ
-size_t      size = 0;                           // размер массива ВЭ
-Eps_Str     Psp;                                // структура с радиусом ВЭ (0.008)
-TVars       *d_host = NULL;                     // характерное расстояние до ближайших ВЭ (host)
 PVortex     *VEL_host = NULL;                   // скорости ВЭ (host)
 PVortex     *VEL_device = NULL;                 // скорости ВЭ (device)
 Vortex      *POS_host = NULL;                   // ВЭ (координаты точки + интенсивность вихря) (host)
@@ -28,30 +23,21 @@ TVctr       *V_inf_device = NULL;               // скорость потока (device)
 TVars       *d_device = NULL;                   // характерное расстояние до ближайших ВЭ (device)
 TVars       *M_device = NULL;                   // "матрица формы" (device)
 TVars       *d_g_device = NULL;                 // суммарная интенсивность "убитых" ВЭ (device)
-PVortex     *F_p_device = NULL;                 // главный вектор сил давления (device)
-PVortex     F_p_host;                           // главный вектор сил давления (host)
-TVars       *Momentum_device = NULL;            // момент сил (device)
-TVars       Momentum_host = 0.0;                // момент сил (host)
-TVars       *R_p_device = NULL;                 // правые части системы "рождения" ВЭ (device)
-int         err = 0;                            // обработка ошибок
-int         st = STEPS;                         // количество шагов по времени
-TVctr       V_inf_host = VINF;                  // вектор скорости потока (host)
-int         sv = SAVING_STEP;                   // шаг сохранения
-TVars       nu = VISCOSITY;                     // коэффициент вязкости
 PVortex     *V_contr_device = NULL;             // скорости в контрольных точках (device)
 PVortex     *V_contr_host = NULL;               // скорости в контрольных точках (host)
 PVortex     *Contr_points_device = NULL;        // контрольные точки для скорости (device)
 PVortex     *Contr_points_host = NULL;          // контрольные точки для скорости (host)
-
-
-tPanel      *panels_host = NULL;                // 
-tPanel      *panels_device = NULL;              // 
-
+PVortex     *F_p_device = NULL;                 // главный вектор сил давления (device)
+TVars       *Momentum_device = NULL;            // момент сил (device)
+tPanel      *panels_host = NULL;                // массив панелей (host)
+tPanel      *panels_device = NULL;              // массив панелей (device)
+FILE *log_file = NULL;
+cudaError_t cuda_error = cudaSuccess;
 
 static int read_config( const char *fname ) {
     FILE *conf_f = fopen( fname, "r" );
     if ( !conf_f ) {
-        printf( "unable to open config file %s", fname );
+        log_e( "unable to open config file %s", fname );
         return 1;
     }
     char buf[236];
@@ -63,7 +49,10 @@ static int read_config( const char *fname ) {
             sscanf( buf, "%*s %zu", &conf.saving_step );
         }
         else if( !_strncmp( buf, "dt ") ) {
-            sscanf( buf, "%*s %lf", &conf.ddt );
+            sscanf( buf, "%*s %lf", &conf.dt );
+        }
+        else if( !_strncmp( buf, "v_inf_incr_steps ") ) {
+            sscanf( buf, "%*s %zu", &conf.v_inf_incr_steps );
         }
         else if( !_strncmp( buf, "increment_step ") ) {
             sscanf( buf, "%*s %zu", &conf.inc_step );
@@ -101,17 +90,17 @@ static int read_config( const char *fname ) {
         else if( !_strncmp( buf, "n_col ") ) {
             sscanf( buf, "%*s %zu", &conf.n_col );
         }
-        else if( !_strncmp( buf, "n_dx ") ) {
-            sscanf( buf, "%*s %zu", &conf.n_dx );
+        else if( !_strncmp( buf, "h_col_x ") ) {
+            sscanf( buf, "%*s %zu", &conf.h_col_x );
         }
-        else if( !_strncmp( buf, "n_dy ") ) {
-            sscanf( buf, "%*s %zu", &conf.n_dy );
+        else if( !_strncmp( buf, "h_col_y ") ) {
+            sscanf( buf, "%*s %zu", &conf.h_col_y );
         }
         else if( !_strncmp( buf, "rc_x ") ) {
-            sscanf( buf, "%*s %lf", &(conf.rc[0]) );
+            sscanf( buf, "%*s %lf", &(conf.rc_x) );
         }
         else if( !_strncmp( buf, "rc_y ") ) {
-            sscanf( buf, "%*s %lf", &(conf.rc[1]) );
+            sscanf( buf, "%*s %lf", &(conf.rc_y) );
         }
         else if( !_strncmp( buf, "pr_file ") ) {
             sscanf( buf, "%*s %s", conf.pr_file );
@@ -125,32 +114,40 @@ static int read_config( const char *fname ) {
         else if( !_strncmp( buf, "matrix_load ") ) {
             sscanf( buf, "%*s %u", &conf.matrix_load );
         }
+        else if( !_strncmp( buf, "max_ve_g ") ) {
+            sscanf( buf, "%*s %lf", &conf.max_ve_g );
+        }
     }
     fclose( conf_f );
     return 0;
 }
 
 static void mem_clear() {
-    cudaFree(V_inf_device);
-    cudaFree(d_g_device);
-    cudaFree(M_device);
-    cudaFree(POS_device);
-    cudaFree(d_device);
-    cudaFree(VEL_device);
+    cudaFree( V_inf_device );
+    cudaFree( d_g_device );
+    cudaFree( M_device );
+    cudaFree( POS_device );
+    cudaFree( d_device );
+    cudaFree( VEL_device );
+    cudaFree( V_contr_device );
+    cudaFree( Contr_points_device );
+    cudaFree( F_p_device );
+    cudaFree( Momentum_device );
+    cudaFree( panels_device );
     cudaDeviceReset();
     free( POS_host );
     free( VEL_host );
+    free( Contr_points_host );
+    free( V_contr_host );
+    free( panels_host );
 }
 
 static void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
-    char *fname1;
-    fname1 = "Kadr";
-    char *fname2;
-    fname2 = ".txt";
-    char *fzero;
-    fzero = "0";
+    char fname1[] = "output/kadrs/Kadr";
+    char fname2[] = ".txt";
+    char fzero[] = "0";
     char fstep[6];
-    char fname[15];
+    char fname[ sizeof(fname1) + 10 ];
     fname[0] = '\0';
     itoaxx(_step,fstep,10);
     strcat(fname,fname1);
@@ -163,7 +160,7 @@ static void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
     strcat(fname,fname2);
     FILE *outfile = fopen(fname, "w");
     if( !outfile ) {
-        printf( "unable to save to file\n" );
+        log_e("error file opening %s : %s", fname, strerror(errno) );
         return;
     }
     fprintf( outfile, "%zu\n", size );
@@ -181,17 +178,17 @@ void save_forces(PVortex F_p, TVars M, int step) {
         outfile = fopen("F_p.txt", "a");
     }
     if( !outfile ) {
-        printf( "unable to output forces\n" );
+        log_e( "unable to output forces" );
         return;
     }
     fprintf( outfile, "%d %lf %lf %lf\n", step, F_p.v[0], F_p.v[1], M );
     fclose(outfile);
 }
 
-static int load_profile(tPanel **panels, size_t *p) {
-    FILE *infile = fopen(conf.pr_file, "r");
+static int load_profile(const char *fname, tPanel **panels, size_t *p) {
+    FILE *infile = fopen(fname, "r");
     if ( !infile ) {
-        printf( "can't open profile file %s error = %s\n", conf.pr_file, strerror(errno) );
+        log_e( "can't open profile file %s error = %s", fname, strerror(errno) );
         return 1;
     }
     char buf[255];
@@ -209,55 +206,138 @@ static int load_profile(tPanel **panels, size_t *p) {
     fclose( infile );
 }
 
-int main( int argc, char **argv ) {
-// расширенное количество рождаемых ВЭ
-// (кратно BLOCK_SIZE)
-    size_t birth;
-    float rash;
+__attribute__((destructor))
+void flush_log() {
+    if( log_file )
+        fflush( log_file );
+}
 
-// количество точек рождения ВЭ
-    size_t p = 0;
+static void set_log_file() {
+    if( !conf.log_file )
+        return;
+    static char log_buf[LOG_BUF_SIZ];
+    log_file = fopen( conf.log_file, "a" );
+    if( !log_file ) {
+        log_e( "Log file %s open failed: '%s'.", conf.log_file, strerror(errno) );
+    }
+    setvbuf( log_file, log_buf, _IOFBF, LOG_BUF_SIZ );
+}
 
-// ошибки CUDA
-    cudaError_t cuerr = cudaSuccess;
+static void write_to_log( FILE *file, uint8_t lev, char *fmt, ... ) {
+    va_list ap;
+    va_start( ap, fmt );
+    char timestr[64];
+    struct timespec t;
+    clock_gettime( CLOCK_REALTIME, &t );
+    struct tm bdtime;
+    localtime_r(&t.tv_sec, &bdtime);
+    size_t timestr_len = strftime(timestr, sizeof(timestr), "%d.%m.%Y %H:%M:%S", &bdtime);
+    snprintf(&timestr[ timestr_len ], sizeof(timestr) - timestr_len, ".%06ld", t.tv_nsec / 1000 );
+    char new_fmt[4096];
+    char symlev[] = "AEWIDB";
+    snprintf(new_fmt, sizeof(new_fmt), "[%s] %c %s\n", timestr, symlev[lev % sizeof(symlev)], fmt);
+    vfprintf(file, new_fmt, ap);
+    va_end( ap );
+}
 
+void log_lev( uint8_t lev, char *fmt, ... ) {
+    if( conf.log_level < lev )
+        return;
+    char p[16 * 1024];
+    va_list ap;
+    va_start( ap, fmt );
+    vsnprintf( p, sizeof(p), fmt, ap );
+    write_to_log( log_file ? : stdout, lev, "%s", p );
+    va_end( ap );
+}
 
+static int parse_params( int argc, char **argv ) {
+    for( int i = 0; i < argc; ++i ) {
+        char *param = argv[i];
+        if( *param != '-' )
+            continue;
+        param++;
+        switch( *param ) {
+        case 'c':
+            strncpy( conf.config_file, argv[++i], sizeof(conf.config_file) );
+            log_d( "config file %s", conf.config_file );
+            break;
+        case 'l':
+            conf.log_level = atoi( argv[++i] );
+            log_d( "log_level %s", argv[i] );
+            break;
+        case 'o':
+            strncpy( conf.log_file, argv[++i], sizeof(conf.log_file) );
+            log_d( "log_file %s", conf.log_file );
+            break;
+        }
+    }
     if( argc < 3 || strcmp( argv[1], "-c" ) ) {
         printf( "Usage:\nvortex -c file.conf\n" );
         return 1;
     }
+    return 0;
+}
+
+int main( int argc, char **argv ) {
+    const TVars TVarsZero = 0.0;                    // для обнуления переменных в памяти GPU
+    TVars       *M = NULL;                          // "матрица формы" (host)
+    size_t      size = 0;                           // размер массива ВЭ
+    Eps_Str     Psp;                                // структура с радиусом ВЭ (0.008)
+    // TVars       *d_host = NULL;                     // характерное расстояние до ближайших ВЭ (host)
+    TVars       *R_p_device = NULL;                 // правые части системы "рождения" ВЭ (device)
+    int         err = 0;                            // обработка ошибок
+    PVortex     F_p_host = {0.0, 0.0};                           // главный вектор сил давления (host)
+    TVars       Momentum_host = 0.0;                // момент сил (host)
+
+
+// расширенное количество рождаемых ВЭ
+// (кратно BLOCK_SIZE)
+    size_t birth = 0;
+    float rash = 0.0;
 
     memset( &conf, 0, sizeof(conf) );
+    conf.log_level = 5;
+    conf.v_inf_incr_steps = 1;
 
-    if ( read_config( argv[2] ) )
+    if ( parse_params( argc, argv ) )
         return 1;
 
-    printf("%lf %zu\n", conf.ve_size, conf.n_col );
+    if ( read_config( conf.config_file ) )
+        return 1;
+
+    if( init_device_conf_values() )
+        return 1;
 
     cudaDeviceReset();
 
-    load_profile(&panels_host, &p);
+    load_profile(conf.pr_file, &panels_host, &conf.birth_quant);
     if ( !conf.matrix_load ) {
-        printf( "generate matrix\n" );
+        log_i( "generate matrix" );
         int cnt = 0;
         do {
-            M = matr_creation(panels_host, p);                                       // генерация матрицы
+            M = matr_creation(panels_host, conf.birth_quant);                                       // генерация матрицы
             ++cnt;
         } while (M == NULL && cnt < 10);
         if (M == NULL) {
-            printf( "Matrix creation error!\n" );
+            log_e( "Matrix creation error!" );
             return 1;
         } else {
-            printf( "Matrix created!\n" );
+            log_i( "Matrix created!" );
         }
     } else {
-        printf( "load matrix\n" );
+        log_i( "load matrix" );
+        size_t p = 0;
         M = load_matrix(&p);
         if (M == NULL) {
-            printf( "Matrix loading error!\n" );
+            log_e( "Matrix loading error!" );
             return 1;
         } else {
-            printf( "Matrix loaded!\n" );
+            log_i( "Matrix loaded!" );
+        }
+        if (conf.birth_quant != p ) {
+            log_e( "martix and profile mismatch");
+            return 1;
         }
     }
 
@@ -267,7 +347,7 @@ int main( int argc, char **argv ) {
 // размер массива ВЭ
     size = 0;
     Psp.eps = 0.008;
-    rash = (TVars)(p) / BLOCK_SIZE;
+    rash = (TVars)(conf.birth_quant) / BLOCK_SIZE;
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
 
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -278,42 +358,42 @@ int main( int argc, char **argv ) {
         Contr_points_host[i].v[0] = -0.15;
     }
 
-    V_contr_host = (PVortex*)malloc( sizeof(PVortex) * 500 * SAVING_STEP );
-    cuerr = cudaMalloc( (void**)&V_contr_device, 500 * SAVING_STEP * sizeof(PVortex) );
-    cuerr = cudaMalloc( (void**)&Contr_points_device, 500 * sizeof(PVortex) );
-    cuerr = cudaMemcpy( Contr_points_device, Contr_points_host, 500 * sizeof(PVortex), cudaMemcpyHostToDevice );
+    V_contr_host = (PVortex*)malloc( sizeof(PVortex) * 500 * conf.saving_step );
+    cuda_safe( cudaMalloc( (void**)&V_contr_device, 500 * conf.saving_step * sizeof(PVortex) ) );
+    cuda_safe( cudaMalloc( (void**)&Contr_points_device, 500 * sizeof(PVortex) ) );
+    cuda_safe( cudaMemcpy( Contr_points_device, Contr_points_host, 500 * sizeof(PVortex), cudaMemcpyHostToDevice ) );
     int v_n_host = 0;
     int *v_n_device = NULL;
-    cuerr = cudaMalloc( (void**)&v_n_device, sizeof(int) );
-    cuerr=cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice );
+    cuda_safe( cudaMalloc( (void**)&v_n_device, sizeof(int) ) );
+    cuda_safe( cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice ) );
 
     F_p_host.v[0] = 0.0;
     F_p_host.v[1] = 0.0;
 
     // РІС‹РґРµР»РµРЅРёРµ РїР°РјСЏС‚Рё Рё РєРѕРїРёСЂРѕРІР°РЅРёРµ РЅР° device
 
-    cuerr = cudaMalloc( (void**)&V_inf_device, sizeof(TVctr) );
-    cuerr += cudaMalloc( (void**)&d_g_device, sizeof(TVars) );
-    cuerr += cudaMalloc( (void**)&Momentum_device, sizeof(TVars) );
-    cuerr += cudaMalloc( (void**)&F_p_device, sizeof(PVortex) );
-    cuerr += cudaMalloc( (void**)&M_device, (birth+1) * (birth+1) * sizeof(TVars) );
-    cuerr += cudaMalloc( (void**)&panels_device, birth * sizeof(tPanel) );
-    cuerr += cudaMemcpy( V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice );
-    cuerr += cudaMemcpy( d_g_device, &TVarsZero, sizeof(TVars), cudaMemcpyHostToDevice );
-    cuerr += cudaMemcpy( Momentum_device, &Momentum_host, sizeof(TVars), cudaMemcpyHostToDevice );
-    cuerr += cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice );
-    cuerr += cudaMemcpy( M_device, M, (birth+1) * (birth+1) * sizeof(TVars), cudaMemcpyHostToDevice );
-    cuerr += cudaMemcpy( panels_device, panels_host, birth * sizeof(tPanel), cudaMemcpyHostToDevice );
+    cuda_safe( cudaMalloc( (void**)&V_inf_device, sizeof(TVctr) ) );
+    cuda_safe( cudaMalloc( (void**)&d_g_device, sizeof(TVars) ) );
+    cuda_safe( cudaMalloc( (void**)&Momentum_device, sizeof(TVars) ) );
+    cuda_safe( cudaMalloc( (void**)&F_p_device, sizeof(PVortex) ) );
+    cuda_safe( cudaMalloc( (void**)&M_device, (birth+1) * (birth+1) * sizeof(TVars) ) );
+    cuda_safe( cudaMalloc( (void**)&panels_device, birth * sizeof(tPanel) ) );
+    cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemcpy( d_g_device, &TVarsZero, sizeof(TVars), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host, sizeof(TVars), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemcpy( M_device, M, (birth+1) * (birth+1) * sizeof(TVars), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemcpy( panels_device, panels_host, birth * sizeof(tPanel), cudaMemcpyHostToDevice ) );
     // РІСЃРµ РјР°СЃСЃРёРІС‹ РёРјРµСЋС‚ РїРµСЂРµРјРµРЅРЅСѓСЋ РґР»РёРЅСѓ Рё РїР°РјСЏС‚СЊ РґР»СЏ РЅРёС… РІС‹РґРµР»СЏРµС‚СЃСЏ РІ incr_vort_quont()
 
     free( M );
-    printf( "dt = %lf\n", dt );
+    log_i( "dt = %lf", conf.dt );
 
     // СѓРІРµР»РёС‡РµРЅРёРµ РјР°СЃСЃРёРІР° Р’Р­ РЅР° INCR_STEP СЌР»РµРјРµРЅС‚РѕРІ
     err = incr_vort_quont( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, &size );
     if (err != 0)
     {
-        printf( "Increase ERROR!\n" );
+        log_e( "Increase ERROR!" );
         mem_clear();
         return 1;
     }
@@ -322,26 +402,27 @@ int main( int argc, char **argv ) {
     float step_time = 0.0;
     cudaEvent_t start = 0, stop = 0;
 //------------------------------------------------------------------------------------------
-    V_inf_host[0] = 0.0;
-    cuerr = cudaMemcpy( V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice );
-    TVars d_V_inf = 1.0/100;
+    TVars d_V_inf = conf.v_inf[0] / (TVars)conf.v_inf_incr_steps;
+    log_d( "delta V = %lf", d_V_inf );
+    conf.v_inf[0] = 0.0;
+    cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
 
     // цикл шагов выполнения расчётов
-    for (current_step = 0; current_step < st; current_step++) {
-        if (current_step < 100) {
-            V_inf_host[0] += d_V_inf;
-            cuerr = cudaMemcpy( V_inf_device, &V_inf_host, sizeof(TVctr), cudaMemcpyHostToDevice );
+    for (current_step = 0; current_step < conf.steps; current_step++) {
+        if (current_step < conf.v_inf_incr_steps) {
+            conf.v_inf[0] += d_V_inf;
+            cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
         }
         // количество ВЭ на текущем шаге, увеличенное до кратности BLOCK_SIZE
         size_t s = 0;
         float rashirenie = 0;
-        rashirenie = (TVars)(n + p) / BLOCK_SIZE;
+        rashirenie = (TVars)(n + conf.birth_quant) / BLOCK_SIZE;
         s = (int)( BLOCK_SIZE * ceil(rashirenie) );
         if (s > size) {
             //СѓРІРµР»РёС‡РµРЅРёРµ РјР°СЃСЃРёРІР° Р’Р­ РЅР° INCR_STEP СЌР»РµРјРµРЅС‚РѕРІ, РµСЃР»Рё СЌС‚Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ
             err = incr_vort_quont( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, &size );
             if (err != 0) {
-                printf( "Increase ERROR!\n" );
+                log_e( "Increase ERROR!" );
                 mem_clear();
                 return 1;
             }// if err
@@ -350,14 +431,14 @@ int main( int argc, char **argv ) {
         // "рождение" ВЭ
         start = 0; stop = 0;
         start_timer( &start, &stop );
-        err = vort_creation( POS_device, V_inf_device, p, birth, n, M_device, d_g_device, panels_device );
+        err = vort_creation( POS_device, V_inf_device, conf.birth_quant, birth, n, M_device, d_g_device, panels_device );
         creation_time += stop_timer( start, stop );
         if (err ) {
-            printf( "Creation ERROR!\n" );
+            log_e( "Creation ERROR!" );
             mem_clear();
             return 1;
         }// if err
-        n += p;
+        n += conf.birth_quant;
 
         if ( current_step % 1 == 0 ) {
             if (current_step == 0) {
@@ -371,18 +452,17 @@ int main( int argc, char **argv ) {
         }
 
         // вывод данных в файл
-        if (current_step % sv == 0) {
+        if (current_step % conf.saving_step == 0) {
 //            cuerr=cudaMemcpy ( d , d_Dev , size  * sizeof(TVars) , cudaMemcpyDeviceToHost);
             cudaDeviceSynchronize();
-            cuerr = cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost );
-            if (cuerr != cudaSuccess) {
-                printf("%s\nSaving ERROR at POS copy\n", cudaGetErrorString(cuerr) );
-                printf( "n = %zu, sizeof(POS_host) = %zu, size = %zu\n", n, sizeof(POS_host), size );
+            if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
+                log_e("Saving ERROR at POS copy" );
+                log_e( "n = %zu, sizeof(POS_host) = %zu, size = %zu", n, sizeof(POS_host), size );
                 mem_clear();
                 return 1;
-            }// if cuerr
+            }// if cuda_safe
 //            cuerr=cudaMemcpy ( POS , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-            printf( "\nOutput %d\n", current_step );
+            log_i( "Output %d", current_step );
 /*
             double gamma = 0.0;
             for( int i = 0; i < n; ++i ) {
@@ -393,16 +473,13 @@ int main( int argc, char **argv ) {
 //////////////////////////////////////////////////////////////////////////
 
 
-            cuerr = cudaMemcpy( V_contr_host, V_contr_device, 500 * SAVING_STEP * sizeof(PVortex), cudaMemcpyDeviceToHost );
-            cuerr = cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice );
-            char *fname1;
-            fname1 = "Vel";
-            char *fname2;
-            fname2 = ".txt";
-            char *fzero;
-            fzero = "0";
+            cuda_safe( cudaMemcpy( V_contr_host, V_contr_device, 500 * conf.saving_step * sizeof(PVortex), cudaMemcpyDeviceToHost ) );
+            cuda_safe( cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice ) );
+            char fname1[] = "output/vels/contr_Vel";
+            char fname2[] = ".txt";
+            char fzero[] = "0";
             char fstep[6];
-            char fname[15];
+            char fname[ sizeof(fname1) + 10];
             fname[0] = '\0';
             itoaxx(current_step,fstep,10);
             strcat(fname,fname1);
@@ -414,46 +491,46 @@ int main( int argc, char **argv ) {
             strcat(fname,fstep);
             strcat(fname,fname2);
             FILE *outfile = fopen(fname, "w");
-            for (size_t i = 0; i < (500 * SAVING_STEP); ++i) {
-                fprintf( outfile, "%zu %lf %lf %lf %lf\n", i, Contr_points_host[i%500].v[0], Contr_points_host[i%500].v[1], V_contr_host[i].v[0], V_contr_host[i].v[1] );
-            }//for i
-            fclose(outfile);
+            if( !outfile ) {
+                log_e("error file opening %s : %s", fname, strerror(errno) );
+            } else {
+                for (size_t i = 0; i < (500 * conf.saving_step); ++i) {
+                    fprintf( outfile, "%zu %lf %lf %lf %lf\n", i, Contr_points_host[i%500].v[0], Contr_points_host[i%500].v[1], V_contr_host[i].v[0], V_contr_host[i].v[1] );
+                }//for i
+                fclose(outfile);
+            }
 
 
 //////////////////////////////////////////////////////////////////////////
 
             save_to_file(POS_host, n, Psp, current_step);
-        }// if sv
+        }// if saving_step
         velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_device, v_n_device);
-        cuerr = cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost );
-        if (cuerr != cudaSuccess) {
-            printf("%s\n", cudaGetErrorString(cuerr) );
-            printf( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p\n", current_step, &F_p_host, F_p_device );
+        if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+            log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", current_step, &F_p_host, F_p_device );
             mem_clear();
             return 1;
-        }// if cuerr
-        cuerr = cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost );
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
-            printf( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p\n", current_step, &Momentum_host, Momentum_device );
+        }// if cuda_safe
+        if( cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost ) ) ) {
+            log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", current_step, &Momentum_host, Momentum_device );
             mem_clear();
             return 1;
-        }// if cuerr
+        }// if cuda_safe
         save_forces(F_p_host, Momentum_host, current_step);
 /*
 			if(j==1)
 			{
-				TVars *gg=new TVars[p];
-				for( int i=0;i<p;i++)
+				TVars *gg=new TVars[conf.birth_quant];
+				for( int i=0;i<conf.birth_quant;i++)
 				{
 					gg[i]=0.0;
 
-					for (size_t k=0;k<p;k++)
+					for (size_t k=0;k<conf.birth_quant;k++)
 					{
 						gg[i]+=M[(birth+1)*i+k]*POS[k].g;
 					}
 				}
-				for (int i=0;i<p;i++) {
+				for (int i=0;i<conf.birth_quant;i++) {
                     POS[i].g=gg[i];
                 }
 				save_to_file(0);
@@ -473,9 +550,9 @@ int main( int argc, char **argv ) {
         // расчёт скоростей
         start = 0; stop = 0;
         start_timer( &start, &stop );
-        err = Speed( POS_device, V_inf_device, s, VEL_device, d_device, nu, panels_device );
+        err = Speed( POS_device, V_inf_device, s, VEL_device, d_device, conf.viscosity, panels_device );
         if (err != 0) {
-            printf( "Speed evaluation ERROR!\n" );
+            log_e( "Speed evaluation ERROR!" );
             mem_clear();
             return 1;
         }
@@ -491,15 +568,15 @@ int main( int argc, char **argv ) {
         F_p_host.v[0] = 0.0;
         F_p_host.v[1] = 0.0;
         Momentum_host = 0.0;
-        cuerr = cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice );
-        cuerr = cudaMemcpy( d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice );
-        cuerr = cudaMemcpy( Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice );
+        cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
+        cuda_safe( cudaMemcpy( d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice ) );
+        cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice ) );
         // перемещение ВЭ
         start = 0; stop = 0;
         start_timer( &start, &stop );
         err = Step( POS_device, VEL_device, &n, s, d_g_device, F_p_device , Momentum_device, panels_device );
         if (err != 0) {
-            printf( "Moving ERROR!\n" );
+            log_e( "Moving ERROR!" );
             mem_clear();
             return 1;
         }
@@ -518,14 +595,14 @@ int main( int argc, char **argv ) {
 //------------------------------------------------------------------------------------------
 //	float time = stop_timer(start, stop);
 //	cout << "Computing time = "<< time << " sec\n";
-    printf( "Creation time = %lf speed time = %lf step time = %lf\n", creation_time, speed_time, step_time );
-    cuerr = cudaMemcpy( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost );
-    cuerr = cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost );
-    cuerr = cudaMemcpy( &Momentum_host, Momentum_device, sizeof(PVortex), cudaMemcpyDeviceToHost );
+    log_i( "Creation time = %lf speed time = %lf step time = %lf", creation_time, speed_time, step_time );
+    cuda_safe( cudaMemcpy( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
+    cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) );
+    cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) );
     // РІС‹РІРѕРґ РІ С„Р°Р№Р» РїРѕСЃР»РµРґРЅРµРіРѕ С€Р°РіР°
-    save_to_file( POS_host, n,  Psp, st );
-    save_forces( F_p_host, Momentum_host, st );
-    printf( "ready!\n" );
+    save_to_file( POS_host, n,  Psp, conf.steps );
+    save_forces( F_p_host, Momentum_host, conf.steps );
+    log_i( "ready!" );
     mem_clear();
     fclose(outfile222);
     return 0;

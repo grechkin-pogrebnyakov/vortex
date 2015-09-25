@@ -14,9 +14,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "definitions.h"
-#include "kernel.cuh"
-//#include "unita.h"
+#include "incl.h"
+
 //создание "матрицы формы" и еЄ обращение
 TVars *matr_creation(tPanel *panels, size_t s);
 
@@ -40,6 +39,8 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 
 // движение на одном временном шаге + сортировка ¬Ё + коллапс
 int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels);
+
+int init_device_conf_values();
 
 //
 int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v);

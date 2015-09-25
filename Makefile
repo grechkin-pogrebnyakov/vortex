@@ -4,8 +4,9 @@ CC=gcc
 NVCC=nvcc
 LD=gcc
 INCL_DIR=./include
-CFLAGS=-c -O2 -I $(INCL_DIR) -std=c99 -Wno-unused-result -Werror
-CUFLAGS=-dc -O2 -I $(INCL_DIR) -w
+OPTIMIZATION=$(if $(DEBUG),-O0 -g,-O2)
+CFLAGS=-c $(OPTIMIZATION) -I $(INCL_DIR) -std=gnu99 -Wno-unused-result -Werror
+CUFLAGS=-dc $(OPTIMIZATION) -I $(INCL_DIR) -w
 COMPUTE=$(if $(compute),$(compute),20)
 SM=$(if $(sm),$(sm),20)
 GENCODE=-gencode arch=compute_$(COMPUTE),code=compute_$(COMPUTE) -gencode arch=compute_$(COMPUTE),code=sm_$(SM)
@@ -40,11 +41,13 @@ all: $(SRCS) $(CU_SRCS) $(EXECUTABLE)
 	@echo 'Finished building: $<'
 	@echo ' '
 
-culink: $(CU_OBJS)
-	@echo 'building culib.o'
-	$(NVCC) $(LDFLAGS) -dlink $(GENCODE) -o src/culink.o $(CU_OBJS)
+culink.o: $(CU_OBJS)
+	@echo 'building $@'
+	$(NVCC) $(LDFLAGS) -dlink $(GENCODE) -o src/$@ $(CU_OBJS)
+	@echo 'Finished building: $@'
+	@echo ' '
 
-$(EXECUTABLE): $(OBJS) culink
+$(EXECUTABLE): $(OBJS) culink.o
 	@echo 'Building target: $@'
 	@echo 'Invoking: $(LD) Linker'
 	$(LD) $(OBJS) $(CU_OBJS) src/culink.o $(LDFLAGS) -o $(EXECUTABLE)

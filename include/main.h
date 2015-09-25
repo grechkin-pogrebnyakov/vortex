@@ -11,11 +11,18 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include "definitions.h"
-#include "unit_1.cuh"
-//#include "definitions.h"
+#include "incl.h"
 
+void flush_log();
 
-#include <string.h>
+void log_lev( uint8_t lev, char *fmt, ... );
+
+inline uint8_t cusafe( cudaError_t cuerr, const char *file, int line ) {
+    if( cuerr != cudaSuccess ) {
+        log_lev_file( LEV_ERROR, file, line, "%s", cudaGetErrorString(cuerr) );
+        return 1;
+    }
+    return 0;
+}
 
 #endif // MAIN_H_

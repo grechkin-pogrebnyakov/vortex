@@ -10,6 +10,26 @@
 
 #include "unit_1.cuh"
 
+extern struct conf_t conf;
+extern cudaError_t cuda_error;
+
+__constant__ TVars dt;
+__constant__ size_t quant;
+__constant__ TVars ve_size;
+__constant__ TVars ve_size2;
+__constant__ TVars r_col_diff_sign2, r_col_same_sign2;
+__constant__ TVars max_ve_g;
+__constant__ size_t n_of_points;
+__constant__ TVars x_max;
+__constant__ TVars x_min;
+__constant__ TVars y_max;
+__constant__ TVars y_min;
+__constant__ TVars h_col_x;
+__constant__ TVars h_col_y;
+__constant__ TVars rho;
+__constant__ TVars rc_x;
+__constant__ TVars rc_y;
+
 //#include "kernel.cuh"
 static int save_matr( TVars** M, size_t size, char *name ) {
     if ( !name ) name = "D.txt";
@@ -371,6 +391,10 @@ TVars   *matr_creation(tPanel *panels, size_t s) {
 
 TVars   *load_matrix(size_t *p) {
     FILE *infile = fopen( "M.txt", "r" );
+    if( !infile ) {
+        log_e("unable to open matrix file %s", "M.txt");
+        return NULL;
+    }
     fscanf( infile, "%zu", p );
     (*p)--;
     TVars **M = (TVars**)malloc( sizeof(TVars*) * (*p + 1) );
@@ -422,25 +446,20 @@ TVars   *load_matrix(size_t *p) {
 }
 
 int incr_vort_quont(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size) {
-    cudaError_t cuerr;
     if ( !p_host || !p_dev || !v_host || !v_dev || !d_dev || !size ) {
-        printf( "wrong parameters\n" );
+        log_e( "wrong parameters" );
         return 2;
     }
     if ( *p_host && *p_dev && *v_host && *v_dev && *d_dev ) {
         Vortex *p_dev_new = NULL;
-        size_t size_n = *size + INCR_STEP;
-        cuerr = cudaMalloc( (void**)&p_dev_new , size_n * sizeof(Vortex) );
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
+        size_t size_n = *size + conf.inc_step;
+        if( cuda_safe( cudaMalloc( (void**)&p_dev_new , size_n * sizeof(Vortex) ) ) ) {
             return 1;
         }
-        cuerr = cudaMemcpy( p_dev_new, *p_dev, *size  * sizeof(Vortex), cudaMemcpyDeviceToDevice );
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
+        if( cuda_safe( cudaMemcpy( p_dev_new, *p_dev, *size  * sizeof(Vortex), cudaMemcpyDeviceToDevice ) ) ) {
             return 1;
         }
-        *size += INCR_STEP;
+        *size += conf.inc_step;
         free( *p_host );
         *p_host = (Vortex*)malloc( sizeof(Vortex) * *size );
         free( *v_host );
@@ -448,36 +467,26 @@ int incr_vort_quont(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex *
         cudaFree(*p_dev);
         cudaFree(*d_dev);
         cudaFree(*v_dev);
-        cuerr = cudaMalloc( (void**)d_dev, *size * sizeof(TVars));
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
+        if( cuda_safe( cudaMalloc( (void**)d_dev, *size * sizeof(TVars) ) ) ) {
             return 1;
         }
-        cuerr = cudaMalloc( (void**)v_dev, *size  * sizeof(PVortex));
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
+        if( cuda_safe( cudaMalloc( (void**)v_dev, *size  * sizeof(PVortex) ) ) ) {
             return 1;
         }
         *p_dev = p_dev_new;
         cudaDeviceSynchronize();
     }
     else if ( !(*p_host) && !(*p_dev) && !(*v_host) && !(*v_dev) && !(*d_dev) ) {
-        *size = INCR_STEP;
+        *size = conf.inc_step;
         *p_host = (Vortex*)malloc( sizeof(Vortex) * *size );
         *v_host = (PVortex*)malloc( sizeof(PVortex) * *size );
-        cuerr = cudaMalloc( (void**)&p_dev, *size * sizeof(Vortex) );
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
+        if( cuda_safe( cudaMalloc( (void**)p_dev, *size * sizeof(Vortex) ) ) ) {
             return 1;
         }
-        cuerr = cudaMalloc( (void**)&d_dev, *size * sizeof(TVars) );
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
+        if( cuda_safe( cudaMalloc( (void**)d_dev, *size * sizeof(TVars) ) ) ) {
             return 1;
         }
-        cuerr = cudaMalloc( (void**)&v_dev , *size  * sizeof(PVortex) );
-        if (cuerr != cudaSuccess) {
-            printf( "%s\n", cudaGetErrorString(cuerr) );
+        if( cuda_safe( cudaMalloc( (void**)v_dev , *size  * sizeof(PVortex) ) ) ) {
             return 1;
         }
     }
@@ -488,30 +497,24 @@ int incr_vort_quont(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex *
 
     srand((unsigned int)time(NULL));
     float *rnd_dev = NULL, *rnd_host = NULL;
-    rnd_host = (float*)malloc( sizeof(float) * INCR_STEP );
-    for (int i = 0; i < INCR_STEP; ++i) {
+    rnd_host = (float*)malloc( sizeof(float) * conf.inc_step );
+    for (int i = 0; i < conf.inc_step; ++i) {
         rnd_host[i] = (float)rand();
     }
-    cuerr = cudaMalloc( (void**)&rnd_dev, INCR_STEP * sizeof(float) );
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMalloc( (void**)&rnd_dev, conf.inc_step * sizeof(float) ) ) ) {
         return 1;
     }
-    cuerr = cudaMemcpy( rnd_dev, rnd_host, INCR_STEP * sizeof(float), cudaMemcpyHostToDevice );
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMemcpy( rnd_dev, rnd_host, conf.inc_step * sizeof(float), cudaMemcpyHostToDevice ) ) ) {
         return 1;
     }
     dim3 threads = dim3(BLOCK_SIZE);
-    dim3 blocks  = dim3(INCR_STEP/BLOCK_SIZE);
+    dim3 blocks  = dim3(conf.inc_step/BLOCK_SIZE);
     // generate random numbers
-    zero_Kernel <<< blocks, threads >>> (rnd_dev, *p_dev, *size - INCR_STEP );
+    zero_Kernel <<< blocks, threads >>> (rnd_dev, *p_dev, *size - conf.inc_step );
     cudaDeviceSynchronize();
     //	cuerr=cudaMemcpy ( p_host , p_dev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
     //	save_to_file_size(1);
-    cuerr = cudaGetLastError();
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }
     return 0;
@@ -519,33 +522,35 @@ int incr_vort_quont(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex *
 
 int vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_of_birth_BLOCK_S,
                      size_t n, TVars *M_Dev, TVars *d_g, tPanel *panels) {
-    cudaError_t cuerr = cudaSuccess;
     cudaEvent_t start, stop;
     start_timer( &start, &stop );
     TVars *R_p = NULL;
-    cuerr=cudaMalloc( (void**)&R_p, (n_of_birth_BLOCK_S) * sizeof(TVars) );
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMalloc( (void**)&R_p, (n_of_birth_BLOCK_S) * sizeof(TVars) ) ) ) {
         return 1;
     }
     extern int current_step;
 
     dim3 threads1 = dim3(BLOCK_SIZE);
     dim3 blocks1  = dim3(n_of_birth_BLOCK_S/BLOCK_SIZE);
+    log_d( "n = %zu", n );
     Right_part_Kernel <<< blocks1, threads1 >>> (pos, V_infDev, n, n_of_birth_BLOCK_S, R_p, panels);
     cudaDeviceSynchronize();
-    cuerr = cudaGetLastError();
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }
-
+    if( LEV_DEBUG < conf.log_level ) {
+        TVars *R_p_host = (TVars*)malloc( (n_of_birth_BLOCK_S) * sizeof(TVars) );
+        if( cuda_safe( cudaMemcpy(R_p_host, R_p, (n_of_birth_BLOCK_S) * sizeof(TVars),cudaMemcpyDeviceToHost) ) ) {
+            return 1;
+        }
+        for( size_t i = 0; i < (n_of_birth_BLOCK_S); ++i )
+            if( R_p_host[i] > DELT ) log_d( "R_p[%zu] = %lf", i, R_p_host );
+        free( R_p_host );
+    }
 
     birth_Kernel<<< blocks1, threads1 >>>(pos, n, n_of_birth, n_of_birth_BLOCK_S, M_Dev, d_g, R_p, panels);
     cudaDeviceSynchronize();
-    cuerr = cudaGetLastError();
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }
     cudaFree(R_p);
@@ -572,28 +577,30 @@ float stop_timer(cudaEvent_t start, cudaEvent_t stop) {
 
  __attribute__((unused))
 static void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int stage) {
-    char *fname1;
-    fname1 = "velocities/Vel";
-    char *fname2;
-    fname2 = ".txt";
-    char *fzero;
-    fzero = "0";
+    if( !POS || !VEL ) return;
+    char fname1[] = "output/vels/Vel";
+    char fname2[] = ".txt";
+    char fzero[] = "0";
     char fstep[8];
-    char fname[20];
+    char fname[ sizeof(fname1) + 10 ];
     fname[0] = '\0';
-    char stage_str[5];
-    sprintf(stage_str, "%d", stage);
+    char stage_str[6];
+    sprintf(stage_str, "_%d", stage);
     sprintf(fstep,"%d", _step);
     strcat(fname,fname1);
-    strcat(fname, stage_str);
     if (_step<10) strcat(fname,fzero);
     if (_step<100) strcat(fname,fzero);
     if (_step<1000) strcat(fname,fzero);
     if (_step<10000) strcat(fname,fzero);
     //	if (_step<100000) strcat(fname,fzero);
     strcat(fname,fstep);
+    strcat(fname, stage_str);
     strcat(fname,fname2);
     FILE *outfile = fopen( fname, "w" );
+    if( !outfile ) {
+        log_e("error file opening %s : %s", fname, strerror(errno) );
+        return;
+    }
     // Сохранен­ие числа вихрей в пелене
     fprintf( outfile, "%zu\n", size );
     for (size_t i = 0; i < size; ++i) {
@@ -632,62 +639,69 @@ static void save_d(TVars *d, size_t size, int _step) {
 } //save_to_file
 
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
-    //extern int current_step;
-    //extern size_t n;
-    cudaError_t cuerr = cudaSuccess;
+    extern int current_step;
+    extern size_t n;
     cudaDeviceSynchronize();
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(s / BLOCK_SIZE);
-    //PVortex * VEL = new PVortex[s];
-    //PVortex * VELLL = new PVortex[s];
+    PVortex * VEL = NULL;
+    PVortex * VELLL = NULL;
+    Vortex *POS = NULL;
+
+    log_d( "s = %zu", s );
     shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
     cudaDeviceSynchronize();
-    //Vortex *POS = new Vortex[s];
-    //cuerr=cudaMemcpy (POS  , pos , s  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-    //cuerr=cudaMemcpy (VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
-    //save_vel_to_file(POS, VEL, n, current_step, 0);
-    cuerr=cudaGetLastError();
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
 
+    if( LEV_DEBUG <= conf.log_level ) {
+        VEL = (PVortex*)malloc( sizeof(PVortex) * s );
+        VELLL = (PVortex*)malloc( sizeof(PVortex) * s );
+        POS = (Vortex*)malloc( sizeof(Vortex) * s );
+        cuda_safe( cudaMemcpy( POS  , pos , s  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
+        cuda_safe( cudaMemcpy( VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+        save_vel_to_file( POS, VEL, n, current_step, 0 );
+    }
 //	TVars* dd=new TVars[s];
 //    cudaMemcpy(dd,d,s * sizeof(TVars),cudaMemcpyDeviceToHost);
 //    save_d(dd, s, current_step);
 //    delete[]dd;
 
-	diffusion_Kernel <<< blocks, threads >>> (pos, s, v, d, nu);
-//	cuerr=cudaMemcpy (POS  , posDev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-//	save_to_file(j);
-	cudaDeviceSynchronize();
-//	cuerr=cudaMemcpy (VELLL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
-/*
-    for (size_t sss = 0; sss < s; ++sss) {
-        VEL[sss].v[0] = VELLL[sss].v[0] - VEL[sss].v[0];
-        VEL[sss].v[1] = VELLL[sss].v[1] - VEL[sss].v[1];
-    }
-	save_vel_to_file(POS, VEL, n, current_step, 1);
-*/
-    cuerr=cudaGetLastError();
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    diffusion_Kernel <<< blocks, threads >>> (pos, s, v, d, nu);
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
-    diffusion_2_Kernel <<< blocks, threads >>> (pos, s, v, d, nu, panels);
-//	cuerr=cudaMemcpy (VEL  , VDev , size  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
-//	stf(j,1);
-    cudaDeviceSynchronize();
-/*
-    cuerr=cudaMemcpy (VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost);
-    for (size_t sss = 0; sss < s; ++sss) {
-        VELLL[sss].v[0] = VEL[sss].v[0] - VELLL[sss].v[0];
-        VELLL[sss].v[1] = VEL[sss].v[1] - VELLL[sss].v[1];
+
+    if( LEV_DEBUG <= conf.log_level ) {
+        cuda_safe( cudaMemcpy( VELLL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+        for (size_t sss = 0; sss < s; ++sss) {
+            VEL[sss].v[0] = VELLL[sss].v[0] - VEL[sss].v[0];
+            VEL[sss].v[1] = VELLL[sss].v[1] - VEL[sss].v[1];
+        }
+        save_vel_to_file(POS, VEL, n, current_step, 1);
     }
-    save_vel_to_file(POS, VELLL, n, current_step, 2);
-    save_vel_to_file(POS, VEL, n, current_step, 3);
-*/
+
+    diffusion_2_Kernel <<< blocks, threads >>> (pos, s, v, d, nu, panels);
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+
+    if( LEV_DEBUG <= conf.log_level ) {
+        cuda_safe( cudaMemcpy( VEL  , v , s  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+        for (size_t sss = 0; sss < s; ++sss) {
+            VELLL[sss].v[0] = VEL[sss].v[0] - VELLL[sss].v[0];
+            VELLL[sss].v[1] = VEL[sss].v[1] - VELLL[sss].v[1];
+        }
+        save_vel_to_file(POS, VELLL, n, current_step, 2);
+        save_vel_to_file(POS, VEL, n, current_step, 3);
+        free( POS );
+        free( VEL );
+        free( VELLL );
+    }
 /*	
 	TVars *dd=new TVars[size];
     cudaMemcpy(dd,d,size * sizeof(TVars),cudaMemcpyDeviceToHost);
@@ -703,33 +717,21 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 */
 //	cudaDeviceSynchronize();
 //    cuerr=cudaMemcpy2D ( M3 , nb , cDev, pitch , nb , &n , cudaMemcpyDeviceToHost);
-    cuerr=cudaGetLastError();
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
-        return 1;
-    }//if
     return 0;
 }
 
 int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels) {
-    cudaError_t cuerr = cudaSuccess;
     TVars *d_g_Dev = NULL;
-    cuerr=cudaMalloc( (void**)&d_g_Dev, *n * sizeof(TVars) );
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMalloc( (void**)&d_g_Dev, *n * sizeof(TVars) ) ) ) {
         return 1;
     }//if
     PVortex *F_p_dev = NULL;
     TVars *M_dev = NULL;
-    cuerr=cudaMalloc((void**)&F_p_dev, *n * sizeof(PVortex));
-    if (cuerr!= cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMalloc( (void**)&F_p_dev, *n * sizeof(PVortex) ) ) ) {
         return 1;
     }//if
-    cuerr=cudaMalloc((void**)&M_dev, *n * sizeof(TVars));
-    if (cuerr!= cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
-    return 1;
+    if( cuda_safe( cudaMalloc((void**)&M_dev, *n * sizeof(TVars)) ) ) {
+        return 1;
     }//if
 //	TVars d_g_h;
 //	cuerr=cudaMemcpy ( &d_g_h, d_g , sizeof(TVars) , cudaMemcpyDeviceToHost);
@@ -738,9 +740,7 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
     dim3 blocks  = dim3(s/BLOCK_SIZE);
     step_Kernel <<< blocks, threads >>> (pos, V, d_g_Dev, F_p_dev, M_dev, *n, panels);
     cudaDeviceSynchronize();
-    cuerr=cudaGetLastError();
-    if (cuerr!= cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
 
@@ -749,52 +749,42 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
 
     summ_Kernel <<< dim3(1),dim3(1) >>> (d_g_Dev, d_g, F_p_dev, F_p, M_dev, M, *n);
     cudaDeviceSynchronize();
-    cuerr=cudaGetLastError();
-    if (cuerr!= cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
     cudaFree(d_g_Dev);
     cudaFree(F_p_dev);
     cudaFree(M_dev);
     TVars d_g_h = 0.0;
-    cuerr=cudaMemcpy ( &d_g_h, d_g , sizeof(TVars) , cudaMemcpyDeviceToHost);
-//	std::cout << "d_g = " << d_g_h << '\n';
+    cuda_safe( cudaMemcpy ( &d_g_h, d_g , sizeof(TVars) , cudaMemcpyDeviceToHost) );
+    log_d( "d_g = %lf", d_g_h );
 
     size_t *n_dev = NULL;
-    cuerr = cudaMalloc( (void**)&n_dev ,  sizeof(size_t) );
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMalloc( (void**)&n_dev ,  sizeof(size_t) ) ) ) {
         return 1;
     }//if
-    cuerr = cudaMemcpy( n_dev, n, sizeof(size_t), cudaMemcpyHostToDevice );
-    if (cuerr!= cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMemcpy( n_dev, n, sizeof(size_t), cudaMemcpyHostToDevice ) ) ) {
         return 1;
     }//if
+    log_d( "n_old =  %zu", *n );
     sort_Kernel <<< dim3(1), dim3(1) >>> (pos,n_dev);
     cudaDeviceSynchronize();
-    cuerr=cudaGetLastError();
-    if (cuerr!= cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
-//	std::cout << "n_old =  " << n;
-    cuerr = cudaMemcpy( n,n_dev,sizeof(size_t), cudaMemcpyDeviceToHost );
-    if (cuerr!= cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaMemcpy( n,n_dev,sizeof(size_t), cudaMemcpyDeviceToHost ) ) ) {
         return 1;
     }//if
-//        std::cout << "   n_new =  " << n <<'\n';
+    log_d( "n_new =  %zu", *n );
     cudaFree(n_dev);
-//    std::cout << "first collapse\n";
-    for (int cc = 0; cc < NCOL; ++cc) {
+    log_d( "first collapse" );
+    for (int cc = 0; cc < conf.n_col; ++cc) {
         int *Setx = NULL;
         int *Sety = NULL;
         int *COL = NULL;
-        cuerr=cudaMalloc ( (void**)&Setx, *n * sizeof( int ) );
-        cuerr=cudaMalloc ( (void**)&Sety, *n * sizeof( int ) );
-        cuerr=cudaMalloc ( (void**)&COL, *n * sizeof( int ) );
+        cuda_safe( cudaMalloc ( (void**)&Setx, *n * sizeof( int ) ) );
+        cuda_safe( cudaMalloc ( (void**)&Sety, *n * sizeof( int ) ) );
+        cuda_safe( cudaMalloc ( (void**)&COL, *n * sizeof( int ) ) );
 
         first_setka_Kernel <<< blocks, threads >>> (pos, *n, Setx, Sety, COL);
         cudaFree(Setx);
@@ -814,22 +804,23 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
         cudaDeviceSynchronize();
         first_collapse_Kernel <<< dim3(1), dim3(1) >>> (pos, COL, *n);
         cudaFree(COL);
-        cudaMalloc( (void**)&n_dev ,  sizeof(size_t));
-        cudaMemcpy(n_dev, n, sizeof(size_t), cudaMemcpyHostToDevice);
+        cuda_safe( cudaMalloc( (void**)&n_dev ,  sizeof(size_t) ) );
+        cuda_safe( cudaMemcpy( n_dev, n, sizeof(size_t), cudaMemcpyHostToDevice ) );
         cudaDeviceSynchronize();
         sort_Kernel <<< dim3(1), dim3(1) >>> (pos, n_dev);
         cudaDeviceSynchronize();
-        cudaMemcpy(n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost);
+        cuda_safe( cudaMemcpy( n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost ) );
+        log_d( "n_after collapse %d =  %zu", cc, *n );
         cudaFree(n_dev);
     }
-//    std::cout << "second collapse\n";
-    for (int cc = 0; cc < NCOL; ++cc) {
+    log_d( "second collapse" );
+    for (int cc = 0; cc < conf.n_col; ++cc) {
         int *Setx = NULL;
         int *Sety = NULL;
         int *COL = NULL;
-        cuerr=cudaMalloc ((void**)&Setx, *n * sizeof( int ));
-        cuerr=cudaMalloc ((void**)&Sety, *n * sizeof( int ));
-        cuerr=cudaMalloc ((void**)&COL, *n * sizeof( int ));
+        cuda_safe( cudaMalloc( (void**)&Setx, *n * sizeof( int ) ) );
+        cuda_safe( cudaMalloc( (void**)&Sety, *n * sizeof( int ) ) );
+        cuda_safe( cudaMalloc( (void**)&COL, *n * sizeof( int ) ) );
 
         second_setka_Kernel <<< blocks, threads >>> (pos, *n, Setx, Sety, COL);
         cudaFree(Setx);
@@ -849,21 +840,43 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
         cudaDeviceSynchronize();
         second_collapse_Kernel <<< dim3(1), dim3(1) >>> (pos, COL, *n);
         cudaFree(COL);
-        cudaMalloc( (void**)&n_dev ,  sizeof(size_t));
-        cudaMemcpy(n_dev, &n, sizeof(size_t), cudaMemcpyHostToDevice);
+        cuda_safe( cudaMalloc( (void**)&n_dev ,  sizeof(size_t) ) );
+        cuda_safe( cudaMemcpy( n_dev, n, sizeof(size_t), cudaMemcpyHostToDevice ) );
         cudaDeviceSynchronize();
         sort_Kernel <<< dim3(1), dim3(1) >>> (pos, n_dev);
         cudaDeviceSynchronize();
-        cudaMemcpy(&n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost);
+        cuda_safe( cudaMemcpy( n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost ) );
+        log_d( "n_after collapse %d =  %zu", cc, *n );
         cudaFree(n_dev);
     }
     return 0;
 }
 
-
+int init_device_conf_values() {
+    if( cuda_safe( cudaMemcpyToSymbol( dt, &conf.dt, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( quant, &conf.birth_quant, sizeof(size_t) ) ) ) return 1;
+    TVars ve_s2 = conf.ve_size * conf.ve_size;
+    if( cuda_safe( cudaMemcpyToSymbol( ve_size, &conf.ve_size, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( ve_size2, &ve_s2, sizeof(TVars) ) ) ) return 1;
+    TVars r_col_diff2 = conf.r_col_diff_sign * conf.r_col_diff_sign * ve_s2;
+    TVars r_col_same2 = conf.r_col_same_sign * conf.r_col_same_sign * ve_s2;
+    if( cuda_safe( cudaMemcpyToSymbol( r_col_diff_sign2, &r_col_diff2, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( r_col_same_sign2, &r_col_same2, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( max_ve_g, &conf.max_ve_g, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( n_of_points, &conf.n_of_points, sizeof(size_t) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( x_max, &conf.x_max, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( x_min, &conf.x_min, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( y_max, &conf.y_max, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( y_min, &conf.y_min, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( h_col_x, &conf.h_col_x, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( h_col_y, &conf.h_col_y, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( rho, &conf.rho, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( rc_x, &conf.rc_x, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( rc_y, &conf.rc_y, sizeof(TVars) ) ) ) return 1;
+    return 0;
+}
 
 int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v) {
-    cudaError_t cuerr;
     size_t nummm = 500;
     TVars rash = 0.0;
     size_t birth = 0;
@@ -873,9 +886,7 @@ int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PV
     dim3 blocks  = dim3(birth / BLOCK_SIZE);
     velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_v);
     cudaDeviceSynchronize();
-    cuerr = cudaGetLastError();
-    if (cuerr != cudaSuccess) {
-        printf( "%s\n", cudaGetErrorString(cuerr) );
+    if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }
     return 0;

@@ -14,7 +14,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "definitions.h"
+#include "incl.h"
 
 // CUDA яƒ–ќ обнуление ¬Ё, начина€ с элемента s, при этом у них случайные координаты
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);
@@ -145,16 +145,9 @@ __device__ __host__ inline TVars Panel_length(tPanel *panel, size_t j) {
     return panel[j].length;
 }
 
-__device__ __host__ inline TVars Ro2_vec(TVctr a, TVctr b) {
-	TVars x;
-	x = (a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]);
-    return x;
-}
-
 __device__ __host__ inline TVars sp_vec(TVctr a, TVctr b) {
    return a[0]*b[0]+a[1]*b[1];
 }
-
 
 __device__ __host__ inline TVars sp(TVars a0, TVars a1, TVars b0, TVars b1) {
    return a0*b0+a1*b1;
