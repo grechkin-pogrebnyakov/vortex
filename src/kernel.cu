@@ -15,8 +15,8 @@
 
 extern __constant__ TVars dt;
 extern __constant__ size_t quant;
-extern __constant__ TVars ve_size;
-extern __constant__ TVars ve_size2;
+extern __constant__ float ve_size;
+extern __constant__ float ve_size2;
 extern __constant__ TVars r_col_same_sign2;
 extern __constant__ TVars r_col_diff_sign2;
 extern __constant__ TVars max_ve_g;
@@ -33,10 +33,9 @@ extern __constant__ TVars rc_y;
 
 __global__ void zero_Kernel( float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
-    TVars a = 0.0;
     pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5;
     pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5;
-    pos[s+ind].g = a;
+    pos[s+ind].g = 0.0;
 }
 
 __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels) {
@@ -115,12 +114,12 @@ __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t 
 	register TVars g;
 	register TVars g_next;
 	for (size_t j = 0; j < n_birth; ++j) {
-//		pos_N.g += M[(pp+1)*i+j]*R_p[j]; 
-            g += M[(n_birth_BLOCK_S + 1) * i + j] * R_p[j]; 
-            g_next += M[(n_birth_BLOCK_S + 1) * i_next + j] * R_p[j]; 
+//		pos_N.g += M[(pp+1)*i+j]*R_p[j];
+            g += M[(n_birth_BLOCK_S + 1) * i + j] * R_p[j];
+            g_next += M[(n_birth_BLOCK_S + 1) * i_next + j] * R_p[j];
 	}
-    	g += M[(n_birth_BLOCK_S + 1) * i + n_birth] * (*d_g);
-    	g_next += M[(n_birth_BLOCK_S + 1) * i_next + n_birth] * (*d_g);
+    g += M[(n_birth_BLOCK_S + 1) * i + n_birth] * (*d_g);
+    g_next += M[(n_birth_BLOCK_S + 1) * i_next + n_birth] * (*d_g);
 	if (i < n_birth)
 	{
 //		pos[i+n_vort].r[0] = pos_N.r[0];
@@ -134,38 +133,41 @@ __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t 
                                  + g_next * Panel_length( panel, i_next ) );
 	}
 }
+
 __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
-    TVars y0 = 0.0f, y1 = 0.0f;
+    float y0 = 0.0f, y1 = 0.0f;
 //	TVars dist2;
-    TVars mnog = 0.0f;
-    TVars d_1 = 0.0f;      //  четыре наименьших
-    TVars d_2 = 0.0f;      //  расстояния от этой
-    TVars d_3 = 0.0f;      //  точки до остальных.
-    TVars d_0 = 0.0f;
-    TVars dist2 = 0.0f;
-    TVars dst = 0.0f;
+    float mnog = 0.0f;
+    float d_1 = 0.0f;      //  четыре наименьших
+    float d_2 = 0.0f;      //  расстояния от этой
+    float d_3 = 0.0f;      //  точки до остальных.
+    float d_0 = 0.0f;
+    float dist2 = 0.0f;
+    float dst = 0.0f;
     // координаты расчётной точки
-    TVars a0 = 0.0f, a1 = 0.0f;
+    float a0 = 0.0f, a1 = 0.0f;
     // координаты воздействующей точки
-    __shared__ TVars b_sh_0 [BLOCK_SIZE];
-    __shared__ TVars b_sh_1 [BLOCK_SIZE];
+    __shared__ float b_sh_0 [BLOCK_SIZE];
+    __shared__ float b_sh_1 [BLOCK_SIZE];
     // интенсивность воздействующей точки
-    __shared__ TVars g [BLOCK_SIZE];
-    a0 = (TVars)pos[i].r[0];
-    a1 = (TVars)pos[i].r[1];
+    __shared__ float g [BLOCK_SIZE];
+    a0 = (float)pos[i].r[0];
+    a1 = (float)pos[i].r[1];
     d_1 = 1e+5f;
     d_2 = 1e+5f;
     d_3 = 1e+5f;
-    d_0 = 1e+5f;
+//    d_0 = 1e+5f;
     for (int f = 0 ; f < n ; f += BLOCK_SIZE) {
-        b_sh_0[threadIdx.x] = (TVars)pos[threadIdx.x+f].r[0];
-        b_sh_1[threadIdx.x] = (TVars)pos[threadIdx.x+f].r[1];
-        g[threadIdx.x] = (TVars)pos[threadIdx.x+f].g;
+        b_sh_0[threadIdx.x] = (float)pos[threadIdx.x+f].r[0];
+        b_sh_1[threadIdx.x] = (float)pos[threadIdx.x+f].r[1];
+        g[threadIdx.x] = (float)pos[threadIdx.x+f].g;
         __syncthreads();
-        for (int j = 0 ; j < BLOCK_SIZE ; ++j) {		
-            //dist2= Ro2(a0, a1, b_sh_0[j], b_sh_1[j]);
-            dist2 = (a0 - b_sh_0[j]) * (a0 - b_sh_0[j]) + (a1 - b_sh_1[j]) * (a1 - b_sh_1[j]);
+        for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
+            if( j + f == i )
+                continue;
+            dist2 = Ro2f(a0, a1, b_sh_0[j], b_sh_1[j]);
+            // dist2 = (a0 - b_sh_0[j]) * (a0 - b_sh_0[j]) + (a1 - b_sh_1[j]) * (a1 - b_sh_1[j]);
             if (d_3 > dist2) {
                     d_3 = dist2;
                     dst = fminf(d_3, d_2);
@@ -174,14 +176,14 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
                     dst = fminf(d_1, d_2);
                     d_2 = fmaxf(d_1, d_2);
                     d_1 = dst;
-                    dst = fminf(d_1, d_0);
-                    d_1 = fmaxf(d_1, d_0);
-                    d_0 = dst;
+  //                  dst = fminf(d_1, d_0);
+  //                  d_1 = fmaxf(d_1, d_0);
+  //                  d_0 = dst;
             }
 	//		if (dist2 < ve_size2) dist2=ve_size2;
             dist2 = fmaxf(dist2, ve_size2);
             mnog = g[j] / dist2;
-            y1 +=  mnog * (a0 - b_sh_0[j]);	
+            y1 +=  mnog * (a0 - b_sh_0[j]);
             y0 += -mnog * (a1 - b_sh_1[j]);
         }//j
         __syncthreads();
@@ -189,10 +191,10 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
 //    d[i] = sqrt(d_1 + d_2 + d_3) / 3;
     d[i] = (sqrtf(d_1) + sqrtf(d_2) + sqrtf(d_3)) / 3;
 //    d[i] = max(d[i], 4.0 * ve_size / 3.0);
-//    V[i].v[0] = (TVars)( y0 / (2 * M_PI) + (*V_inf)[0] );
-//    V[i].v[1] = (TVars)( y1 / (2 * M_PI) + (*V_inf)[1] );
-    for( int k = 0; k < 2; ++k )
-      V[i].v[k] =  (*V_inf)[k];
+    V[i].v[0] = (TVars)( y0 / (2 * M_PI) + (*V_inf)[0] );
+    V[i].v[1] = (TVars)( y1 / (2 * M_PI) + (*V_inf)[1] );
+//    for( int k = 0; k < 2; ++k )
+//      V[i].v[k] =  (*V_inf)[k];
     __syncthreads();
 }
 
@@ -285,7 +287,6 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
             II_3_1 -= RES_3_1;
         //  II_0 = 1;  II_3[0] = r ; II_3[1]=2;
         } else if (r <= 0.1 * dL) {
-         //   printf("...");
             Norm_0 = N_contr_xf(panels, f);
             Norm_1 = N_contr_yf(panels, f);
             II_0 = M_PI * dd * dd;

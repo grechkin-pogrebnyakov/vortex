@@ -19,7 +19,8 @@
 #define LEV_INFO    3
 #define LEV_DEBUG   4
 
-#define LOG_BUF_SIZ 100 * 1024
+#define LOG_BUF_SIZ 1024
+#define TIMINGS_BUF_SIZ 256
 
 #define log_lev_file( lev, file, line, fmt, ... ) log_lev( lev, fmt " (%s:%d)", ##__VA_ARGS__, file, line )
 
@@ -83,7 +84,7 @@ struct conf_t {
     TVctr v_inf;
     size_t n_of_points;
     TVars x_max, x_min, y_max, y_min;
-    TVars ve_size;
+    float ve_size;
     size_t n_col;
     size_t h_col_x, h_col_y;
     TVars rc_x;
@@ -97,6 +98,7 @@ struct conf_t {
     char log_file[256];
     char config_file[256];
     uint8_t log_level;
+    char timings_file[256];
 };
 
 #endif // DEFINITIONS_H_

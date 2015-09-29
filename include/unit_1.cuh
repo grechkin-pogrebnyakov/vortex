@@ -17,13 +17,13 @@ extern "C" {
 #include "incl.h"
 
 //создание "матрицы формы" и её обращение
-TVars *matr_creation(tPanel *panels, size_t s);
+TVars *matr_creation(tPanel *panels, size_t s, size_t birth);
 
 // Загрузка матрицы
 TVars   *load_matrix(size_t *p);
 
 // расширение массивов
-int incr_vort_quont(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size);
+int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size);
 
 // рождение вихрей на профиле
 int vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_of_birth_BLOCK_S,
