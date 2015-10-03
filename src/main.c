@@ -252,8 +252,10 @@ void flush_log() {
 __attribute__((destructor))
 static void close_logs() {
     fflush(NULL);
-    fclose( timings_file );
-    fclose( log_file );
+    if( timings_file )
+        fclose( timings_file );
+    if( log_file )
+        fclose( log_file );
 }
 
 static void set_log_file() {
@@ -263,16 +265,18 @@ static void set_log_file() {
         log_file = fopen( conf.log_file, "w" );
         if( !log_file ) {
             log_e( "Log file %s open failed: '%s'.", conf.log_file, strerror(errno) );
+        } else {
+            setvbuf( log_file, log_buf, _IOFBF, LOG_BUF_SIZ );
+            log_a("\n\n\n\n\nnew run\n\n\n\n");
         }
-        setvbuf( log_file, log_buf, _IOFBF, LOG_BUF_SIZ );
-        log_a("\n\n\n\n\nnew run\n\n\n\n");
     }
     if( *conf.timings_file ) {
         timings_file = fopen( conf.timings_file, "w" );
         if( !timings_file ) {
             log_e( "timings file %s open failed: '%s'.", conf.timings_file, strerror(errno) );
+        } else {
+            setvbuf( timings_file, timings_buf, _IOFBF, TIMINGS_BUF_SIZ );
         }
-        setvbuf( timings_file, timings_buf, _IOFBF, TIMINGS_BUF_SIZ );
     }
 }
 
@@ -290,7 +294,7 @@ static void write_to_log( FILE *file, char *fmt, ... ) {
 static inline void log_t( char *fmt, ... ) {
     va_list ap;
     va_start( ap, fmt );
-    vwrite_to_log( timings_file, fmt, ap );
+    vwrite_to_log( timings_file ? : stdout, fmt, ap );
     va_end( ap );
 }
 
