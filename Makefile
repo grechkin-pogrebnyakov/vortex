@@ -1,16 +1,18 @@
 RM := rm -rf
 
 CC=gcc
-NVCC=nvcc
+NVCC=/usr/local/cuda/bin/nvcc
 LD=gcc
 INCL_DIR=./include
+CUDA_INCL_DIR=/usr/local/cuda/include
+CUDA_LIB_DIR=/usr/local/cuda/lib64
 OPTIMIZATION=$(if $(DEBUG),-O0 -g,-O2)
-CFLAGS=-c $(OPTIMIZATION) -I $(INCL_DIR) -std=gnu99 -Wno-unused-result -Werror
-CUFLAGS=-dc $(OPTIMIZATION) -I $(INCL_DIR) -w
+CFLAGS=-c $(OPTIMIZATION) -I$(INCL_DIR) -I$(CUDA_INCL_DIR) -std=gnu99 -Wno-unused-result -Werror
+CUFLAGS=-dc $(OPTIMIZATION) -I$(INCL_DIR) -w
 COMPUTE=$(if $(compute),$(compute),20)
 SM=$(if $(sm),$(sm),20)
 GENCODE=-gencode arch=compute_$(COMPUTE),code=compute_$(COMPUTE) -gencode arch=compute_$(COMPUTE),code=sm_$(SM)
-LDFLAGS=-I $(INCL_DIR) -lcudart -lm
+LDFLAGS=-I$(INCL_DIR) -I$(CUDA_INCL_DIR) -L$(CUDA_LIB_DIR) -lcudart -lm
 
 CU_SRCS = \
 src/kernel.cu \
