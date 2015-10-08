@@ -15,6 +15,5 @@
 #include "definitions.h"
 #include "main.h"
 #include "unit_1.cuh"
-#include "kernel.cuh"
 
 #endif

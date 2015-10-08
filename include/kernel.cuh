@@ -11,10 +11,19 @@
 #ifndef KERNEL_CUH_
 #define KERNEL_CUH_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "incl.h"
+
+template <unsigned int block_size>
+__global__ void first_find_range_Kernel( Vortex *pos, unsigned int s, node_t *tree );
+
+template <unsigned int block_size>
+__global__ void second_find_range_Kernel( node_t *input, unsigned int s, node_t *tree );
+
+template <size_t block_size, size_t level>
+__global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+
+template <size_t block_size, size_t level>
+__global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t *output );
 
 // CUDA яƒ–ќ обнуление ¬Ё, начина€ с элемента s, при этом у них случайные координаты
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);
@@ -177,7 +186,4 @@ __device__ bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int* hitpan
 // вычисление скоростей в контрольных точках
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v);
 
-#ifdef __cplusplus
-}
-#endif
 #endif // KERNEL_CUH_

@@ -48,6 +48,9 @@ static int read_config( const char *fname ) {
         else if( !_strncmp( buf, "saving_step ") ) {
             sscanf( buf, "%*s %zu", &conf.saving_step );
         }
+        else if( !_strncmp( buf, "tree_depth ") ) {
+            sscanf( buf, "%*s %zu", &conf.tree_depth );
+        }
         else if( !_strncmp( buf, "dt ") ) {
             sscanf( buf, "%*s %lf", &conf.dt );
         }
@@ -374,6 +377,10 @@ int main( int argc, char **argv ) {
     if ( read_config( conf.config_file ) )
         return 1;
     log_d("ok read config");
+    if( conf.tree_depth > 7 ) {
+        log_e( "tree_depth %zu > 7 unsupported", conf.tree_depth );
+        return 1;
+    }
 
     set_log_file();
 

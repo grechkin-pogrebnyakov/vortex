@@ -38,16 +38,27 @@
 typedef double TVars;									    // тип данных, примен€емый дл€ ¬—≈’ чисел с плавающей точкой
 typedef TVars TVctr[2];								    // вектор
 
-                                                            // тип данных ¬Ё
+typedef struct node_t {
+    float x_min, x_max, y_min, y_max;
+    float med;
+    uint8_t axe;
+    struct node_t* l_child;
+    struct node_t* r_child;
+} tree_t;
+
+// тип данных ¬Ё
 typedef struct Vortex{
     TVars r[2];         //положение
     TVars g;        //интенсивность
+    unsigned int tree_id; // id of tree block
 } Vortex;//POS
-                                                            // тип данных данных скоростей ¬Ё
+
+// тип данных данных скоростей ¬Ё
 typedef struct PVortex{
     TVars v[2]; //скорость
 } PVortex;//VEL
-						                                    // тип данных с точностью
+
+// тип данных с точностью
 typedef struct Eps_Str{
     TVars eps; //
 } Eps_Str;
@@ -99,6 +110,7 @@ struct conf_t {
     char config_file[256];
     uint8_t log_level;
     char timings_file[256];
+    size_t tree_depth;
 };
 
 #endif // DEFINITIONS_H_

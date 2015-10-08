@@ -9,6 +9,8 @@
  */
 
 #include "unit_1.cuh"
+#include "kernel.cuh"
+
 
 extern struct conf_t conf;
 extern cudaError_t cuda_error;
@@ -645,6 +647,110 @@ static void save_d(TVars *d, size_t size, int _step) {
     fclose( outfile );
 } //save_to_file
 
+static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
+    unsigned int second_reduce_size = 2 * BLOCK_SIZE;
+    static node_t *tmp_tree = NULL;
+    if( !tmp_tree )
+        cuda_safe( cudaMalloc( (void**)&tmp_tree, BLOCK_SIZE * sizeof( node_t ) ) );
+    log_d("start tree_building");
+    first_find_range_Kernel<BLOCK_SIZE> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, (unsigned int)s, tmp_tree );
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+    second_find_range_Kernel<BLOCK_SIZE> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree, second_reduce_size, tree );
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+    node_t *tree_pointer = tree;
+    static node_t *tmp_tree_2 = NULL;
+    if( !tmp_tree_2 )
+        cuda_safe( cudaMalloc( (void**)&tmp_tree_2, BLOCK_SIZE * sizeof( node_t ) * (2 << conf.tree_depth) ) );
+
+    if( conf.tree_depth > 1 ) {
+        first_tree_reduce_Kernel<BLOCK_SIZE, 1> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        tree_pointer += 1;
+        second_tree_reduce_Kernel<BLOCK_SIZE, 1> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( conf.tree_depth > 2 ) {
+        first_tree_reduce_Kernel<BLOCK_SIZE, 2> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        tree_pointer += (1 << 1);
+        second_tree_reduce_Kernel<BLOCK_SIZE, 2> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( conf.tree_depth > 3 ) {
+        first_tree_reduce_Kernel<BLOCK_SIZE, 3> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        tree_pointer += (1 << 2);
+        second_tree_reduce_Kernel<BLOCK_SIZE, 3> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( conf.tree_depth > 4 ) {
+        first_tree_reduce_Kernel<BLOCK_SIZE, 4> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        tree_pointer += (1 << 3);
+        second_tree_reduce_Kernel<BLOCK_SIZE, 4> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( conf.tree_depth > 5 ) {
+        first_tree_reduce_Kernel<BLOCK_SIZE, 5> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        tree_pointer += (1 << 4);
+        second_tree_reduce_Kernel<BLOCK_SIZE, 5> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( conf.tree_depth > 6 ) {
+        first_tree_reduce_Kernel<BLOCK_SIZE, 6> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        tree_pointer += (1 << 5);
+        second_tree_reduce_Kernel<BLOCK_SIZE, 6> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+
+    log_d("finish tree_building");
+    return 0;
+}
+
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
     log_d("speed");
     extern int current_step;
@@ -652,11 +758,34 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
     cudaDeviceSynchronize();
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(s / BLOCK_SIZE);
+    dim3 blocks_tree = dim3( BLOCK_SIZE );
     PVortex * VEL = NULL;
     PVortex * VELLL = NULL;
     Vortex *POS = NULL;
 
     log_d( "s = %zu", s );
+
+    static node_t *tree = NULL;
+    static size_t tree_size = 0;
+    if ( !tree_size )
+    {
+        for( size_t i = 0; i < conf.tree_depth; ++i ) {
+            tree_size += 1 << i;
+        }
+        log_e( "tree_size = %zu", tree_size );
+    }
+    if( !tree )
+        cuda_safe( cudaMalloc( (void**)&tree, tree_size * sizeof( node_t ) ) );
+
+
+    cudaEvent_t start_tree = 0, stop_tree = 0;
+    start_timer( &start_tree, &stop_tree );
+    if( conf.tree_depth && build_tree( pos, s, tree ) ) {
+        log_e( "error tree building" );
+        return 1;
+    }
+    log_e("tree_time = %f", stop_timer( start_tree, stop_tree ));
+
     shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
     cudaDeviceSynchronize();

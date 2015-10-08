@@ -31,6 +31,605 @@ extern __constant__ TVars rho;
 extern __constant__ TVars rc_x;
 extern __constant__ TVars rc_y;
 
+template <unsigned int block_size>
+__global__ void first_find_range_Kernel( Vortex *pos, unsigned int s, node_t *tree ) {
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int grid_size = block_size * 2 * gridDim.x;
+    __shared__ float arr[block_size * 4];
+    arr[tid + 0] = x_max;
+    arr[tid + 1] = x_min;
+    arr[tid + 2] = y_max;
+    arr[tid + 3] = y_min;
+    while( i < s ) {
+        float x_1 = (float)pos[i].r[0];
+        float y_1 = (float)pos[i].r[1];
+        pos[i].tree_id = 0;
+        float x_2 = (float)pos[i + block_size].r[0];
+        float y_2 = (float)pos[i + block_size].r[1];
+        pos[i + block_size].tree_id = 0;
+        // x_min
+        arr[tid * 4 + 0] = fminf( fminf( x_1, x_2 ), arr[tid * 4 + 0] );
+        // x_max
+        arr[tid * 4 + 1] = fmaxf( fmaxf( x_1, x_2 ), arr[tid * 4 + 1] );
+        // y_min
+        arr[tid * 4 + 2] = fminf( fminf( y_1, y_2 ), arr[tid * 4 + 2] );
+        // y_max
+        arr[tid * 4 + 3] = fmaxf( fmaxf( y_1, y_2 ), arr[tid * 4 + 3] );
+        i += grid_size;
+    }
+    __syncthreads();
+
+    if( block_size >= 512 ) {
+        if( tid < 256 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 256 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 256 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 256 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 256 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 256 ) {
+        if( tid < 128 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 128 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 128 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 128 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 128 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 128 ) {
+        if( tid < 64 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 64 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 64 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 64 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 64 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 64 ) {
+        if( tid < 32 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 32 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 32 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 32 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 32 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 32 ) {
+        if( tid < 16 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 16 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 16 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 16 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 16 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 16 ) {
+        if( tid < 8 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 8 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 8 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 8 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 8 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 8 ) {
+        if( tid < 4 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 4 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 4 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 4 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 4 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 4 ) {
+        if( tid < 2 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 2 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 2 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 2 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 2 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 2 ) {
+        if( tid < 1 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 1 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 1 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 1 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 1 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( 0 == tid ) {
+        float x_min = arr[0], x_max = arr[1];
+        float y_min = arr[2], y_max = arr[3];
+        tree[blockIdx.x].x_min = x_min;
+        tree[blockIdx.x].x_max = x_max;
+        tree[blockIdx.x].y_min = y_min;
+        tree[blockIdx.x].y_min = y_max;
+        if( x_max - x_min > y_max - y_min ) {
+            tree[blockIdx.x].med = (x_max + x_min) / 2.0;
+            tree[blockIdx.x].axe = 0;
+        } else {
+            tree[blockIdx.x].med = (y_max + y_min) / 2.0;
+            tree[blockIdx.x].axe = 1;
+        }
+    }
+}
+
+template
+__global__ void first_find_range_Kernel<BLOCK_SIZE>( Vortex *pos, unsigned int s, node_t *tree );
+
+template <unsigned int block_size>
+__global__ void second_find_range_Kernel( node_t *input, unsigned int s, node_t *tree ) {
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int grid_size = block_size * 2 * gridDim.x;
+    __shared__ float arr[ block_size * 4 ];
+    arr[tid + 0] = x_max;
+    arr[tid + 1] = x_min;
+    arr[tid + 2] = y_max;
+    arr[tid + 3] = y_min;
+    while( i < s ) {
+        float x_min_1 = input[i].x_min;
+        float x_max_1 = input[i].x_max;
+        float y_min_1 = input[i].y_min;
+        float y_max_1 = input[i].y_max;
+        float x_min_2 = input[i + block_size].x_min;
+        float x_max_2 = input[i + block_size].x_max;
+        float y_min_2 = input[i + block_size].y_min;
+        float y_max_2 = input[i + block_size].y_max;
+        // x_min
+        arr[tid * 4 + 0] = fminf( fminf( x_min_1, x_min_2 ), arr[tid * 4 + 1] );
+        // x_max
+        arr[tid * 4 + 1] = fmaxf( fmaxf( x_max_1, x_max_2 ), arr[tid * 4 + 1] );
+        // y_min
+        arr[tid * 4 + 2] = fminf( fminf( y_min_1, y_min_2 ), arr[tid * 4 + 2] );
+        // y_max
+        arr[tid * 4 + 3] = fmaxf( fmaxf( y_max_1, y_max_2 ), arr[tid * 4 + 3] );
+        i += grid_size;
+    }
+    __syncthreads();
+
+    if( block_size >= 512 ) {
+        if( tid < 256 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 256 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 256 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 256 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 256 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 256 ) {
+        if( tid < 128 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 128 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 128 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 128 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 128 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 128 ) {
+        if( tid < 64 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 64 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 64 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 64 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 64 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 64 ) {
+        if( tid < 32 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 32 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 32 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 32 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 32 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 32 ) {
+        if( tid < 16 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 16 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 16 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 16 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 16 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 16 ) {
+        if( tid < 8 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 8 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 8 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 8 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 8 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 8 ) {
+        if( tid < 4 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 4 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 4 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 4 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 4 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 4 ) {
+        if( tid < 2 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 2 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 2 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 2 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 2 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( block_size >= 2 ) {
+        if( tid < 1 ) {
+            arr[tid * 4 + 0] = fminf( arr[tid * 4 + 0], arr[( tid + 1 ) * 4 + 0] );
+            arr[tid * 4 + 1] = fmaxf( arr[tid * 4 + 1], arr[( tid + 1 ) * 4 + 1] );
+            arr[tid * 4 + 2] = fminf( arr[tid * 4 + 2], arr[( tid + 1 ) * 4 + 2] );
+            arr[tid * 4 + 3] = fmaxf( arr[tid * 4 + 3], arr[( tid + 1 ) * 4 + 3] );
+            __syncthreads();
+        }
+    }
+    if( 0 == tid ) {
+        float x_min = arr[0], x_max = arr[1];
+        float y_min = arr[2], y_max = arr[3];
+        tree[blockIdx.x].x_min = x_min;
+        tree[blockIdx.x].x_max = x_max;
+        tree[blockIdx.x].y_min = y_min;
+        tree[blockIdx.x].y_min = y_max;
+        if( x_max - x_min > y_max - y_min ) {
+            tree[blockIdx.x].med = (x_max + x_min) / 2.0;
+            tree[blockIdx.x].axe = 0;
+        } else {
+            tree[blockIdx.x].med = (y_max + y_min) / 2.0;
+            tree[blockIdx.x].axe = 1;
+        }
+    }
+}
+
+template
+__global__ void second_find_range_Kernel<BLOCK_SIZE>( node_t *input, unsigned int s, node_t *tree );
+
+template <size_t block_size, size_t level>
+__global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output ) {
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int grid_size = block_size * 2 * gridDim.x;
+    const unsigned int size = 4 << level;
+    __shared__ float arr[size * block_size];
+
+
+    const unsigned int branch_count = 1 << level;
+
+    float medians[ branch_count ];
+    uint8_t axe[ branch_count ];
+
+    for( unsigned int i = 0; i < branch_count; ++i ) {
+        medians[i] = tree[i].med;
+        axe[i] = tree[i].axe;
+        arr[size * tid + 4 * i + 0] = x_max;
+        arr[size * tid + 4 * i + 1] = x_min;
+        arr[size * tid + 4 * i + 2] = y_max;
+        arr[size * tid + 4 * i + 3] = y_min;
+    }
+
+    while( i < s ) {
+        float x_1 = (float)pos[i].r[0];
+        float y_1 = (float)pos[i].r[1];
+        unsigned int tree_id_1 = pos[i].tree_id;
+        tree_id_1 = pos[i].tree_id = ( x_1 > medians[tree_id_1] ) * ( ( axe[tree_id_1] + 1) % 2 ) + ( y_1 > medians[tree_id_1] ) *  axe[tree_id_1] + 2 * tree_id_1;
+        float x_2 = (float)pos[i + block_size].r[0];
+        float y_2 = (float)pos[i + block_size].r[1];
+        unsigned int tree_id_2 = pos[i + block_size].tree_id;
+        tree_id_2 = pos[i + block_size].tree_id = ( x_2 > medians[tree_id_2] ) * ( ( axe[tree_id_2] + 1) % 2 ) + ( y_2 > medians[tree_id_2] ) *  axe[tree_id_2] + 2 * tree_id_2;
+        // x_min
+        arr[size * tid + 4 * tree_id_1 + 0] = fminf( arr[size * tid + 4 * tree_id_1 + 0], x_1 );
+        // x_max
+        arr[size * tid + 4 * tree_id_1 + 1] = fmaxf( arr[size * tid + 4 * tree_id_1 + 1], x_1 );
+        // y_min
+        arr[size * tid + 4 * tree_id_1 + 2] = fminf( arr[size + tid + 4 * tree_id_1 + 2], y_1 );
+        // y_max
+        arr[size * tid + 4 * tree_id_1 + 3] = fmaxf( arr[size + tid + 4 * tree_id_1 + 3], y_1 );
+
+        // x_min
+        arr[size * tid + 4 * tree_id_2 + 0] = fminf( arr[size * tid + 4 * tree_id_2 + 0], x_2 );
+        // x_max
+        arr[size * tid + 4 * tree_id_2 + 1] = fmaxf( arr[size * tid + 4 * tree_id_2 + 1], x_2 );
+        // y_min
+        arr[size * tid + 4 * tree_id_2 + 2] = fminf( arr[size + tid + 4 * tree_id_2 + 2], y_2 );
+        // y_max
+        arr[size * tid + 4 * tree_id_2 + 3] = fmaxf( arr[size + tid + 4 * tree_id_2 + 3], y_2 );
+        i += grid_size;
+    }
+    __syncthreads();
+
+    if( block_size >= 512 ) {
+        if( tid < 256 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 256 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 256 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 256 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 256 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 256 ) {
+        if( tid < 128 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 128 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 128 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 128 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 128 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 128 ) {
+        if( tid < 64 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 64 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 64 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 64 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 64 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 64 ) {
+        if( tid < 32 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 32 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 32 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 32 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 32 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 32 ) {
+        if( tid < 16 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 16 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 16 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 16 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 16 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 16 ) {
+        if( tid < 8 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 8 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 8 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 8 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 8 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 8 ) {
+        if( tid < 4 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 4 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 4 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 4 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 4 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 4 ) {
+        if( tid < 2 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 2 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 2 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 2 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 2 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 2 ) {
+        if( tid < 1 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 1 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 1 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 1 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 1 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( 0 == tid ) {
+        for( int i = 0; i < branch_count; ++i ) {
+            float x_min = arr[0 + 4 * i], x_max = arr[1 + 4 * i];
+            float y_min = arr[2 + 4 * i], y_max = arr[3 + 4 * i];
+            output[branch_count * blockIdx.x + i].x_min = x_min;
+            output[blockIdx.x * branch_count + i].x_max = x_max;
+            output[blockIdx.x * branch_count + i].y_min = y_min;
+            output[blockIdx.x * branch_count + i].y_min = y_max;
+        }
+    }
+}
+
+template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 1>( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 2>( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 3>( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 4>( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 5>( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 6>( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+
+template <size_t block_size, size_t level>
+__global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t *output ) {
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int grid_size = block_size * 2 * gridDim.x;
+    const unsigned int size = 4 << level;
+
+    __shared__ float arr[size * block_size];
+
+    const unsigned int branch_count = 1 << level;
+
+    for( unsigned int i = 0; i < branch_count; ++i ) {
+        arr[size * tid + 4 * i + 0] = x_max;
+        arr[size * tid + 4 * i + 1] = x_min;
+        arr[size * tid + 4 * i + 2] = y_max;
+        arr[size * tid + 4 * i + 3] = y_min;
+    }
+
+    while( i < s ) {
+        for( unsigned int j = 0; j < branch_count; ++j ) {
+            float x_min_1 = input[i * branch_count + j].x_min;
+            float x_max_1 = input[i * branch_count + j].x_max;
+            float y_min_1 = input[i * branch_count + j].y_min;
+            float y_max_1 = input[i * branch_count + j].y_max;
+            float x_min_2 = input[(i + block_size) * branch_count + j].x_min;
+            float x_max_2 = input[(i + block_size) * branch_count + j].x_max;
+            float y_min_2 = input[(i + block_size) * branch_count + j].y_min;
+            float y_max_2 = input[(i + block_size) * branch_count + j].y_max;
+            // x_min
+            arr[size * tid + 4 * j + 0] = fminf( arr[size * tid + 4 * j + 0], fminf( x_min_1, x_min_2 ) );
+            // x_max
+            arr[size * tid + 4 * j + 1] = fmaxf( arr[size * tid + 4 * j + 1], fmaxf( x_max_1, x_max_2 ) );
+            // y_min
+            arr[size * tid + 4 * j + 2] = fminf( arr[size + tid + 4 * j + 2], fminf( y_min_1, y_min_2 ) );
+            // y_max
+            arr[size * tid + 4 * j + 3] = fmaxf( arr[size + tid + 4 * j + 3], fmaxf( y_max_1, y_max_2 ) );
+        }
+        i += grid_size;
+    }
+    __syncthreads();
+
+    if( block_size >= 512 ) {
+        if( tid < 256 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 256 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 256 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 256 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 256 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 256 ) {
+        if( tid < 128 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 128 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 128 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 128 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 128 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 128 ) {
+        if( tid < 64 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 64 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 64 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 64 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 64 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 64 ) {
+        if( tid < 32 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 32 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 32 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 32 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 32 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 32 ) {
+        if( tid < 16 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 16 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 16 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 16 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 16 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 16 ) {
+        if( tid < 8 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 8 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 8 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 8 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 8 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 8 ) {
+        if( tid < 4 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 4 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 4 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 4 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 4 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 4 ) {
+        if( tid < 2 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 2 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 2 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 2 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 2 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( block_size >= 2 ) {
+        if( tid < 1 ) {
+            for( int i = 0; i < branch_count; ++i ) {
+                arr[tid * size + 4 * i + 0] = fminf( arr[tid * size + 4 * i + 0], arr[( tid + 1 ) * size + 4 * i + 0] );
+                arr[tid * size + 4 * i + 1] = fmaxf( arr[tid * size + 4 * i + 1], arr[( tid + 1 ) * size + 4 * i + 1] );
+                arr[tid * size + 4 * i + 2] = fminf( arr[tid * size + 4 * i + 2], arr[( tid + 1 ) * size + 4 * i + 2] );
+                arr[tid * size + 4 * i + 3] = fmaxf( arr[tid * size + 4 * i + 3], arr[( tid + 1 ) * size + 4 * i + 3] );
+            }
+            __syncthreads();
+        }
+    }
+    if( 0 == tid ) {
+        for( int i = 0; i < branch_count; ++i ) {
+            float x_min = arr[0 + 4 * i], x_max = arr[1 + 4 * i];
+            float y_min = arr[2 + 4 * i], y_max = arr[3 + 4 * i];
+            output[branch_count * blockIdx.x + i].x_min = x_min;
+            output[blockIdx.x * branch_count + i].x_max = x_max;
+            output[blockIdx.x * branch_count + i].y_min = y_min;
+            output[blockIdx.x * branch_count + i].y_min = y_max;
+            if( x_max - x_min > y_max - y_min ) {
+                output[blockIdx.x * branch_count + i].med = (x_max + x_min) / 2.0;
+                output[blockIdx.x * branch_count + i].axe = 0;
+            } else {
+                output[blockIdx.x * branch_count + i].med = (y_max + y_min) / 2.0;
+                output[blockIdx.x * branch_count + i].axe = 1;
+            }
+        }
+    }
+}
+
+template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 1>( node_t *input, unsigned int s, node_t *output );
+template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 2>( node_t *input, unsigned int s, node_t *output );
+template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 3>( node_t *input, unsigned int s, node_t *output );
+template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 4>( node_t *input, unsigned int s, node_t *output );
+template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 5>( node_t *input, unsigned int s, node_t *output );
+template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 6>( node_t *input, unsigned int s, node_t *output );
+
 __global__ void zero_Kernel( float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
     pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5;
