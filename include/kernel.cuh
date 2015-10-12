@@ -25,6 +25,15 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
 template <size_t block_size, size_t level>
 __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t *output );
 
+template <size_t block_size, size_t level>
+__global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output );
+
+template <size_t block_size, size_t level>
+__global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s, node_t *output );
+
+template <size_t block_size, size_t level>
+__global__ void find_tree_params_Kernel( node_t *tree );
+
 // CUDA яƒ–ќ обнуление ¬Ё, начина€ с элемента s, при этом у них случайные координаты
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);
 

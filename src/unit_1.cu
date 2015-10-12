@@ -747,6 +747,109 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         }//if
     }
 
+    if( 7 == conf.tree_depth ) {
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 6> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        second_find_leaves_params_Kernel<BLOCK_SIZE, 6> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        find_tree_params_Kernel<BLOCK_SIZE, 6> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( 6 == conf.tree_depth ) {
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 5> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        second_find_leaves_params_Kernel<BLOCK_SIZE, 5> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        find_tree_params_Kernel<BLOCK_SIZE, 5> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( 5 == conf.tree_depth ) {
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 4> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        second_find_leaves_params_Kernel<BLOCK_SIZE, 4> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        find_tree_params_Kernel<BLOCK_SIZE, 4> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( 4 == conf.tree_depth ) {
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 3> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        second_find_leaves_params_Kernel<BLOCK_SIZE, 3> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        find_tree_params_Kernel<BLOCK_SIZE, 3> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( 3 == conf.tree_depth ) {
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 2> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        second_find_leaves_params_Kernel<BLOCK_SIZE, 2> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        find_tree_params_Kernel<BLOCK_SIZE, 2> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+    if( 2 == conf.tree_depth ) {
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 1> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        second_find_leaves_params_Kernel<BLOCK_SIZE, 1> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+        find_tree_params_Kernel<BLOCK_SIZE, 1> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer );
+        cudaDeviceSynchronize();
+        if( cuda_safe( cudaGetLastError() ) ) {
+            return 1;
+        }//if
+    }
+
     log_d("finish tree_building");
     return 0;
 }

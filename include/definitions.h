@@ -42,8 +42,12 @@ typedef struct node_t {
     float x_min, x_max, y_min, y_max;
     float med;
     uint8_t axe;
-    struct node_t* l_child;
-    struct node_t* r_child;
+    float g_above;
+    float xg_above;
+    float yg_above;
+    float g_below;
+    float xg_below;
+    float yg_below;
 } tree_t;
 
 // тип данных ВЭ
