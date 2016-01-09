@@ -34,62 +34,62 @@ __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s,
 template <size_t block_size, size_t level>
 __global__ void find_tree_params_Kernel( node_t *tree );
 
-// CUDA ЯДРО обнуление ВЭ, начиная с элемента s, при этом у них случайные координаты
+// CUDA РЇР”Р Рћ РѕР±РЅСѓР»РµРЅРёРµ Р’Р­, РЅР°С‡РёРЅР°СЏ СЃ СЌР»РµРјРµРЅС‚Р° s, РїСЂРё СЌС‚РѕРј Сѓ РЅРёС… СЃР»СѓС‡Р°Р№РЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);
 
-// CUDA ЯДРО Рождение новых ВЭ на границе профиля
+// CUDA РЇР”Р Рћ Р РѕР¶РґРµРЅРёРµ РЅРѕРІС‹С… Р’Р­ РЅР° РіСЂР°РЅРёС†Рµ РїСЂРѕС„РёР»СЏ
 __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t n_birth_BLOCK_S, TVars * M, TVars *d_g, TVars *R_p, tPanel *panel);
 
-// CUDA ЯДРО Расчёт скоростей ВЭ (с использованием разделяемой памяти) + процедура поиска хорактерного расстояния до 3-х соседних ВЭ
+// CUDA РЇР”Р Рћ Р Р°СЃС‡С‘С‚ СЃРєРѕСЂРѕСЃС‚РµР№ Р’Р­ (СЃ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј СЂР°Р·РґРµР»СЏРµРјРѕР№ РїР°РјСЏС‚Рё) + РїСЂРѕС†РµРґСѓСЂР° РїРѕРёСЃРєР° С…РѕСЂР°РєС‚РµСЂРЅРѕРіРѕ СЂР°СЃСЃС‚РѕСЏРЅРёСЏ РґРѕ 3-С… СЃРѕСЃРµРґРЅРёС… Р’Р­
 __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d);
 
-// CUDA ЯДРО Расчёт и прибавление диффузионной скорости ВЭ
+// CUDA РЇР”Р Рћ Р Р°СЃС‡С‘С‚ Рё РїСЂРёР±Р°РІР»РµРЅРёРµ РґРёС„С„СѓР·РёРѕРЅРЅРѕР№ СЃРєРѕСЂРѕСЃС‚Рё Р’Р­
 __global__ void diffusion_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars nu);
 
-// CUDA ЯДРО Расчёт и прибавление диффузионной скорости от профиля ВЭ
+// CUDA РЇР”Р Рћ Р Р°СЃС‡С‘С‚ Рё РїСЂРёР±Р°РІР»РµРЅРёРµ РґРёС„С„СѓР·РёРѕРЅРЅРѕР№ СЃРєРѕСЂРѕСЃС‚Рё РѕС‚ РїСЂРѕС„РёР»СЏ Р’Р­
 __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars nu, tPanel *panels);
 
-// CUDA ЯДРО Движение на одном временном шаге + контроль "протыкания" профиля + удаление дельнего следа
+// CUDA РЇР”Р Рћ Р”РІРёР¶РµРЅРёРµ РЅР° РѕРґРЅРѕРј РІСЂРµРјРµРЅРЅРѕРј С€Р°РіРµ + РєРѕРЅС‚СЂРѕР»СЊ "РїСЂРѕС‚С‹РєР°РЅРёСЏ" РїСЂРѕС„РёР»СЏ + СѓРґР°Р»РµРЅРёРµ РґРµР»СЊРЅРµРіРѕ СЃР»РµРґР°
 __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_p, TVars *M, size_t n, tPanel *panels);
 
-// CUDA ЯДРО Суммирует d_g_Dev и записывает результат в d_g
+// CUDA РЇР”Р Рћ РЎСѓРјРјРёСЂСѓРµС‚ d_g_Dev Рё Р·Р°РїРёСЃС‹РІР°РµС‚ СЂРµР·СѓР»СЊС‚Р°С‚ РІ d_g
 __global__ void summ_Kernel(TVars *d_g_Dev, TVars *d_g, PVortex *F_p_dev, PVortex *F_p, TVars *M_dev, TVars *M, size_t n);
 
-// CUDA ЯДРО сортировка ВЭ
+// CUDA РЇР”Р Рћ СЃРѕСЂС‚РёСЂРѕРІРєР° Р’Р­
 __global__ void sort_Kernel(Vortex *pos, size_t *s);
 
-// CUDA ЯДРО поиск элементов разных знаков для коллапса
+// CUDA РЇР”Р Рћ РїРѕРёСЃРє СЌР»РµРјРµРЅС‚РѕРІ СЂР°Р·РЅС‹С… Р·РЅР°РєРѕРІ РґР»СЏ РєРѕР»Р»Р°РїСЃР°
 __global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL);
 
-// CUDA ЯДРО поиск элементов одного знака для коллапса
+// CUDA РЇР”Р Рћ РїРѕРёСЃРє СЌР»РµРјРµРЅС‚РѕРІ РѕРґРЅРѕРіРѕ Р·РЅР°РєР° РґР»СЏ РєРѕР»Р»Р°РїСЃР°
 __global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL);
 
-// CUDA ЯДРО коллапс ВЭ разных знаков
+// CUDA РЇР”Р Рћ РєРѕР»Р»Р°РїСЃ Р’Р­ СЂР°Р·РЅС‹С… Р·РЅР°РєРѕРІ
 __global__ void first_collapse_Kernel(Vortex *pos, int *COL, size_t n);
 
-// CUDA ЯДРО коллапс ВЭ одного знака
+// CUDA РЇР”Р Рћ РєРѕР»Р»Р°РїСЃ Р’Р­ РѕРґРЅРѕРіРѕ Р·РЅР°РєР°
 __global__ void second_collapse_Kernel(Vortex *pos, int *COL, size_t n);
 
-// CUDA ЯДРО расчёт правых частей для рождения
+// CUDA РЇР”Р Рћ СЂР°СЃС‡С‘С‚ РїСЂР°РІС‹С… С‡Р°СЃС‚РµР№ РґР»СЏ СЂРѕР¶РґРµРЅРёСЏ
 __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels);
 
 /*
-// x - координата точки рождения ВЭ
+// x - РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РѕС‡РєРё СЂРѕР¶РґРµРЅРёСЏ Р’Р­
 __device__ __host__ TVars R_birth_x(size_t n, size_t j);
 
-// y - координата точки рождения ВЭ
+// y - РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РѕС‡РєРё СЂРѕР¶РґРµРЅРёСЏ Р’Р­
 __device__ __host__ TVars R_birth_y(size_t n, size_t j);
 
-// x - координата точки контроля ВЭ
+// x - РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РѕС‡РєРё РєРѕРЅС‚СЂРѕР»СЏ Р’Р­
 __device__ __host__ TVars R_contr_x(size_t n, size_t i);
 
-// y - координата точки контроля ВЭ
+// y - РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РѕС‡РєРё РєРѕРЅС‚СЂРѕР»СЏ Р’Р­
 __device__ __host__ TVars R_contr_y(size_t n, size_t i);
 
-// x - координата нормали к точке контроля ВЭ
+// x - РєРѕРѕСЂРґРёРЅР°С‚Р° РЅРѕСЂРјР°Р»Рё Рє С‚РѕС‡РєРµ РєРѕРЅС‚СЂРѕР»СЏ Р’Р­
 __device__ __host__ TVars N_contr_x(size_t n, size_t i);
 
-// y - координата нормали к точке контроля ВЭ
+// y - РєРѕРѕСЂРґРёРЅР°С‚Р° РЅРѕСЂРјР°Р»Рё Рє С‚РѕС‡РєРµ РєРѕРЅС‚СЂРѕР»СЏ Р’Р­
 __device__ __host__ TVars N_contr_y(size_t n, size_t i);
 */
 
@@ -183,7 +183,7 @@ __device__ inline float Ro2f(float a0, float a1, float b0, float b1) {
     return (a0 - b0) * (a0 - b0) + (a1 - b1) * (a1 - b1);
 }
 
-// Вчисление I_0, I_3
+// Р’С‡РёСЃР»РµРЅРёРµ I_0, I_3
 __device__ void I_0_I_3(TVars Ra_0, TVars Ra_1, TVars Rb_0, TVars Rb_1, TVars Norm_0, TVars Norm_1, TVars Rj_0, TVars Rj_1,
                                 TVars dL, TVars d, size_t N,TVars *RES_0, TVars *RES_3_0, TVars *RES_3_1);
 
@@ -192,7 +192,7 @@ __device__ void I_0_I_3f(float Ra_0, float Ra_1, float Rb_0, float Rb_1, float N
 
 __device__ bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int* hitpan);
 
-// вычисление скоростей в контрольных точках
+// РІС‹С‡РёСЃР»РµРЅРёРµ СЃРєРѕСЂРѕСЃС‚РµР№ РІ РєРѕРЅС‚СЂРѕР»СЊРЅС‹С… С‚РѕС‡РєР°С…
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v);
 
 #endif // KERNEL_CUH_

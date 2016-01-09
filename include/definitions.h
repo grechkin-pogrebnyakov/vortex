@@ -32,11 +32,11 @@
 
 #define cuda_safe( cuerr ) cusafe( cuerr, __FILE__, __LINE__ )
 
-#define BLOCK_SIZE      (32)                                // размер блока для всех вычислений на GPU, кроме рождения ВЭ
+#define BLOCK_SIZE      (32)                                // СЂР°Р·РјРµСЂ Р±Р»РѕРєР° РґР»СЏ РІСЃРµС… РІС‹С‡РёСЃР»РµРЅРёР№ РЅР° GPU, РєСЂРѕРјРµ СЂРѕР¶РґРµРЅРёСЏ Р’Р­
 #define DELT            (1E-12)                             // zero threshold
 
-typedef double TVars;									    // тип данных, применяемый для ВСЕХ чисел с плавающей точкой
-typedef TVars TVctr[2];								    // вектор
+typedef double TVars;									    // С‚РёРї РґР°РЅРЅС‹С…, РїСЂРёРјРµРЅСЏРµРјС‹Р№ РґР»СЏ Р’РЎР•РҐ С‡РёСЃРµР» СЃ РїР»Р°РІР°СЋС‰РµР№ С‚РѕС‡РєРѕР№
+typedef TVars TVctr[2];								    // РІРµРєС‚РѕСЂ
 
 typedef struct node_t {
     float x_min, x_max, y_min, y_max;
@@ -50,19 +50,19 @@ typedef struct node_t {
     float yg_below;
 } tree_t;
 
-// тип данных ВЭ
+// С‚РёРї РґР°РЅРЅС‹С… Р’Р­
 typedef struct Vortex{
-    TVars r[2];         //положение
-    TVars g;        //интенсивность
+    TVars r[2];         //РїРѕР»РѕР¶РµРЅРёРµ
+    TVars g;        //РёРЅС‚РµРЅСЃРёРІРЅРѕСЃС‚СЊ
     unsigned int tree_id; // id of tree block
 } Vortex;//POS
 
-// тип данных данных скоростей ВЭ
+// С‚РёРї РґР°РЅРЅС‹С… РґР°РЅРЅС‹С… СЃРєРѕСЂРѕСЃС‚РµР№ Р’Р­
 typedef struct PVortex{
-    TVars v[2]; //скорость
+    TVars v[2]; //СЃРєРѕСЂРѕСЃС‚СЊ
 } PVortex;//VEL
 
-// тип данных с точностью
+// С‚РёРї РґР°РЅРЅС‹С… СЃ С‚РѕС‡РЅРѕСЃС‚СЊСЋ
 typedef struct Eps_Str{
     TVars eps; //
 } Eps_Str;

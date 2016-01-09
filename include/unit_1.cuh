@@ -16,28 +16,28 @@ extern "C" {
 #endif
 #include "incl.h"
 
-//создание "матрицы формы" и её обращение
+//СЃРѕР·РґР°РЅРёРµ "РјР°С‚СЂРёС†С‹ С„РѕСЂРјС‹" Рё РµС‘ РѕР±СЂР°С‰РµРЅРёРµ
 TVars *matr_creation(tPanel *panels, size_t s, size_t birth);
 
-// Загрузка матрицы
+// Р—Р°РіСЂСѓР·РєР° РјР°С‚СЂРёС†С‹
 TVars   *load_matrix(size_t *p);
 
-// расширение массивов
+// СЂР°СЃС€РёСЂРµРЅРёРµ РјР°СЃСЃРёРІРѕРІ
 int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size);
 
-// рождение вихрей на профиле
+// СЂРѕР¶РґРµРЅРёРµ РІРёС…СЂРµР№ РЅР° РїСЂРѕС„РёР»Рµ
 int vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_of_birth_BLOCK_S,
                      size_t n, TVars *M_Dev, TVars *d_g, tPanel *panels);
 
-// запуск таймера
+// Р·Р°РїСѓСЃРє С‚Р°Р№РјРµСЂР°
 void start_timer(cudaEvent_t *start, cudaEvent_t *stop);
-// остановка таймера
+// РѕСЃС‚Р°РЅРѕРІРєР° С‚Р°Р№РјРµСЂР°
 float stop_timer(cudaEvent_t start, cudaEvent_t stop);
 
-// определение скоростей в каждой точке через интенсивности вихрей
+// РѕРїСЂРµРґРµР»РµРЅРёРµ СЃРєРѕСЂРѕСЃС‚РµР№ РІ РєР°Р¶РґРѕР№ С‚РѕС‡РєРµ С‡РµСЂРµР· РёРЅС‚РµРЅСЃРёРІРЅРѕСЃС‚Рё РІРёС…СЂРµР№
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels);
 
-// движение на одном временном шаге + сортировка ВЭ + коллапс
+// РґРІРёР¶РµРЅРёРµ РЅР° РѕРґРЅРѕРј РІСЂРµРјРµРЅРЅРѕРј С€Р°РіРµ + СЃРѕСЂС‚РёСЂРѕРІРєР° Р’Р­ + РєРѕР»Р»Р°РїСЃ
 int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p, TVars *M, tPanel *panels);
 
 int init_device_conf_values();

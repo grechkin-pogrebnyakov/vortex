@@ -103,7 +103,7 @@ static int move_all_back(TVars **M, size_t size, size_t *mov) {
 
 static TVars **inverse_matrix(TVars **M, size_t size) {
     int err = 0;
-    // порядок строк в матрице
+    // РїРѕСЂСЏРґРѕРє СЃС‚СЂРѕРє РІ РјР°С‚СЂРёС†Рµ
     size_t *POR = (size_t*)malloc( sizeof(size_t) * size );
     if (!POR) return NULL;
     size_t PR;
@@ -606,7 +606,7 @@ static void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, 
         log_e("error file opening %s : %s", fname, strerror(errno) );
         return;
     }
-    // Сохранен­ие числа вихрей в пелене
+    // СЃРѕС…СЂР°РЅРµРЅРёРµ С‡РёСЃР»Р° РІРёС…СЂРµР№ РІ РїРµР»РµРЅРµ
     fprintf( outfile, "%zu\n", size );
     for (size_t i = 0; i < size; ++i) {
         fprintf( outfile, "%zu %lf %lf %lf %lf\n", i, POS[i].r[0], POS[i].r[1], VEL[i].v[0], VEL[i].v[1] );
@@ -639,7 +639,7 @@ static void save_d(TVars *d, size_t size, int _step) {
         log_e( "error open file %s : %s", fname, strerror(errno) );
         return;
     }
-    // Сохранен­ие числа вихрей в пелене
+    // СЃРѕС…СЂР°РЅРµРЅРёРµ С‡РёСЃР»Р° РІРёС…СЂРµР№ РІ РїРµР»РµРЅРµ
     fprintf( outfile, "%zu\n", size );
     for (size_t i = 0; i < size; ++i) {
         fprintf( outfile, "%zu %lf\n", i, d[i] );
