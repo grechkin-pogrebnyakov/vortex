@@ -1020,179 +1020,27 @@ template __global__ void second_find_leaves_params_Kernel<BLOCK_SIZE, 6>( node_t
 
 template <size_t block_size, size_t level>
 __global__ void find_tree_params_Kernel( node_t *tree ) {
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    const unsigned int tid = threadIdx.x;
+    const unsigned int i = blockIdx.x * block_size + tid;
 
-    for( int i = 0; i < leveli - 1; ++i ) {
-        tree += (1 << i);
+    for( int j = 0; j < level - 1; ++j )
+        tree += (1 << j);
 
-    for( unsigned int i = 0; i < branch_count; ++i ) {
-        arr[size * tid + 6 * i + 0] = 0;
-        arr[size * tid + 6 * i + 1] = 0;
-        arr[size * tid + 6 * i + 2] = 0;
-        arr[size * tid + 6 * i + 3] = 0;
-        arr[size * tid + 6 * i + 4] = 0;
-        arr[size * tid + 6 * i + 5] = 0;
+    for( int j = level; j >= 1; --j ) {
+        unsigned count_on_level = 1 < (j - 1);
+        for( unsigned jj = 0; jj < count_on_level; jj += block_size ) {
+            unsigned k = jj + i;
+            if( k < count_on_level ) {
+                tree[k].g_above = tree[2 * k + count_on_level].g_above + tree[2 * k + count_on_level + 1].g_above;
+                tree[k].xg_above = tree[2 * k + count_on_level].xg_above + tree[2 * k + count_on_level + 1].xg_above;
+                tree[k].yg_above = tree[2 * k + count_on_level].yg_above + tree[2 * k + count_on_level + 1].yg_above;
+                tree[k].g_below = tree[2 * k + count_on_level].g_below + tree[2 * k + count_on_level + 1].g_below;
+                tree[k].xg_below = tree[2 * k + count_on_level].xg_below + tree[2 * k + count_on_level + 1].xg_below;
+                tree[k].yg_below = tree[2 * k + count_on_level].yg_below + tree[2 * k + count_on_level + 1].yg_below;
+            }
+        }
     }
 
-    while( i < s ) {
-        for( unsigned int j = 0; j < branch_count; ++j ) {
-            float g_above_1 = input[i * branch_count + j].g_above;
-            float xg_above_1 = input[i * branch_count + j].xg_above;
-            float yg_above_1 = input[i * branch_count + j].yg_above;
-            float g_below_1 = input[i * branch_count + j].g_below;
-            float xg_below_1 = input[i * branch_count + j].xg_below;
-            float yg_below_1 = input[i * branch_count + j].yg_below;
-            float g_above_2 = input[(i + block_size) * branch_count + j].g_above;
-            float xg_above_2 = input[(i + block_size) * branch_count + j].xg_above;
-            float yg_above_2 = input[(i + block_size) * branch_count + j].yg_above;
-            float g_below_2 = input[(i + block_size) * branch_count + j].g_below;
-            float xg_below_2 = input[(i + block_size) * branch_count + j].xg_below;
-            float yg_below_2 = input[(i + block_size) * branch_count + j].yg_below;
-            // g_above
-            arr[size * tid + 6 * j + 0] += g_above_1 + g_above_2;
-            // xg_above
-            arr[size * tid + 6 * j + 1] += xg_above_1 + xg_above_2;
-            // yg_above
-            arr[size * tid + 6 * j + 2] += yg_above_1 + yg_above_2;
-            // g_below
-            arr[size * tid + 6 * j + 3] += g_below_1 + g_below_2;
-            // xg_below
-            arr[size * tid + 6 * j + 4] += xg_below_1 + xg_below_2;
-            // yg_above
-            arr[size * tid + 6 * j + 5] += yg_below_1 + yg_below_2;
-        }
-        i += grid_size;
-    }
-    __syncthreads();
-
-    if( block_size >= 512 ) {
-        if( tid < 256 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 256 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 256 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 256 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 256 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 256 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 256 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 256 ) {
-        if( tid < 128 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 128 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 128 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 128 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 128 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 128 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 128 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 128 ) {
-        if( tid < 64 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 64 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 64 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 64 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 64 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 64 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 64 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 64 ) {
-        if( tid < 32 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 32 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 32 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 32 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 32 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 32 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 32 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 32 ) {
-        if( tid < 16 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 16 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 16 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 16 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 16 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 16 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 16 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 16 ) {
-        if( tid < 8 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 8 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 8 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 8 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 8 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 8 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 8 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 8 ) {
-        if( tid < 4 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 4 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 4 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 4 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 4 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 4 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 4 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 4 ) {
-        if( tid < 2 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 2 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 2 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 2 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 2 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 2 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 2 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 2 ) {
-        if( tid < 1 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 1 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 1 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 1 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 1 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 1 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 1 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( 0 == tid ) {
-        for( int i = 0; i < branch_count; ++i ) {
-            output[branch_count * blockIdx.x + i].g_above = arr[6 * i + 0];
-            output[blockIdx.x * branch_count + i].xg_above = arr[6 * i + 1];
-            output[blockIdx.x * branch_count + i].yg_above = arr[6 * i + 2];
-            output[branch_count * blockIdx.x + i].g_below = arr[6 * i + 3];
-            output[blockIdx.x * branch_count + i].xg_below = arr[6 * i + 4];
-            output[blockIdx.x * branch_count + i].yg_below = arr[6 * i + 5];
-        }
-    }
 }
 
 template __global__ void find_tree_params_Kernel<BLOCK_SIZE, 1>( node_t *tree );
