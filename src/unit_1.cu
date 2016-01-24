@@ -663,6 +663,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
+    /*
     node_t *tree_pointer = tree;
     static node_t *tmp_tree_2 = NULL;
     if( !tmp_tree_2 )
@@ -849,7 +850,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
             return 1;
         }//if
     }
-
+*/
     log_d("finish tree_building");
     return 0;
 }

@@ -13,24 +13,25 @@
 
 #include "incl.h"
 
+// CUDA ЯДРА поиск границ области, занимаемой ВЭ
 template <unsigned int block_size>
 __global__ void first_find_range_Kernel( Vortex *pos, unsigned int s, node_t *tree );
-
 template <unsigned int block_size>
 __global__ void second_find_range_Kernel( node_t *input, unsigned int s, node_t *tree );
 
+// CUDA ЯДРА поиск размеров ячеек и определение принадлежности ВЭ ячейкам нижнего уровня
 template <size_t block_size, size_t level>
 __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
-
 template <size_t block_size, size_t level>
 __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t *output );
 
+// CUDA ЯДРА определение параметров листьев нижнего уровня
 template <size_t block_size, size_t level>
 __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output );
-
 template <size_t block_size, size_t level>
 __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s, node_t *output );
 
+// CUDA ЯДРО определение параметров всего дерева
 template <size_t block_size, size_t level>
 __global__ void find_tree_params_Kernel( node_t *tree );
 
