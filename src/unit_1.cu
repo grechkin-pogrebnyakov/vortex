@@ -888,6 +888,9 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
         return 1;
     }
     log_e("tree_time = %f", stop_timer( start_tree, stop_tree ));
+    node_t *host_tree = (node_t*)malloc(sizeof(node_t) * tree_size);
+    cuda_safe( cudaMemcpy( (void*)host_tree, (void*)tree, tree_size * sizeof( node_t ), cudaMemcpyDeviceToHost ) );
+    free(host_tree);
 
     shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
