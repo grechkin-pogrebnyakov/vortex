@@ -37,17 +37,18 @@ __global__ void first_find_range_Kernel( Vortex *pos, unsigned int s, node_t *tr
     unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
     unsigned int grid_size = block_size * 2 * gridDim.x;
     __shared__ float arr[block_size * 4];
-    arr[tid + 0] = x_max;
-    arr[tid + 1] = x_min;
-    arr[tid + 2] = y_max;
-    arr[tid + 3] = y_min;
+    arr[4 * tid + 0] = x_max;
+    arr[4 * tid + 1] = x_min;
+    arr[4 * tid + 2] = y_max;
+    arr[4 * tid + 3] = y_min;
     while( i < s ) {
         float x_1 = (float)pos[i].r[0];
         float y_1 = (float)pos[i].r[1];
         pos[i].tree_id = 0;
-        float x_2 = (float)pos[i + block_size].r[0];
-        float y_2 = (float)pos[i + block_size].r[1];
-        pos[i + block_size].tree_id = 0;
+        float x_2 = (i + block_size) < s ? (float)pos[i + block_size].r[0] : x_1;
+        float y_2 = (i + block_size) < s ? (float)pos[i + block_size].r[1] : y_1;
+        if( i + block_size < s )
+            pos[i + block_size].tree_id = 0;
         // x_min
         arr[tid * 4 + 0] = fminf( fminf( x_1, x_2 ), arr[tid * 4 + 0] );
         // x_max
@@ -147,7 +148,7 @@ __global__ void first_find_range_Kernel( Vortex *pos, unsigned int s, node_t *tr
         tree[blockIdx.x].x_min = xx_min;
         tree[blockIdx.x].x_max = xx_max;
         tree[blockIdx.x].y_min = yy_min;
-        tree[blockIdx.x].y_min = yy_max;
+        tree[blockIdx.x].y_max = yy_max;
         if( xx_max - xx_min > yy_max - yy_min ) {
             tree[blockIdx.x].med = (xx_max + xx_min) / 2.0;
             tree[blockIdx.x].axe = 0;
@@ -167,10 +168,10 @@ __global__ void second_find_range_Kernel( node_t *input, unsigned int s, node_t 
     unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
     unsigned int grid_size = block_size * 2 * gridDim.x;
     __shared__ float arr[ block_size * 4 ];
-    arr[tid + 0] = x_min;
-    arr[tid + 1] = x_max;
-    arr[tid + 2] = y_min;
-    arr[tid + 3] = y_max;
+    arr[tid * 4 + 0] = x_max;
+    arr[tid * 4 + 1] = x_min;
+    arr[tid * 4 + 2] = y_max;
+    arr[tid * 4 + 3] = y_min;
     while( i < s ) {
         float x_min_1 = input[i].x_min;
         float x_max_1 = input[i].x_max;
@@ -279,7 +280,7 @@ __global__ void second_find_range_Kernel( node_t *input, unsigned int s, node_t 
         tree[blockIdx.x].x_min = xx_min;
         tree[blockIdx.x].x_max = xx_max;
         tree[blockIdx.x].y_min = yy_min;
-        tree[blockIdx.x].y_min = yy_max;
+        tree[blockIdx.x].y_max = yy_max;
         if( xx_max - xx_min > yy_max - yy_min ) {
             tree[blockIdx.x].med = (xx_max + xx_min) / 2.0;
             tree[blockIdx.x].axe = 0;

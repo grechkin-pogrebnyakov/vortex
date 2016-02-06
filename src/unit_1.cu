@@ -651,7 +651,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     unsigned int second_reduce_size = 2 * BLOCK_SIZE;
     static node_t *tmp_tree = NULL;
     if( !tmp_tree )
-        cuda_safe( cudaMalloc( (void**)&tmp_tree, BLOCK_SIZE * sizeof( node_t ) ) );
+        cuda_safe( cudaMalloc( (void**)&tmp_tree, second_reduce_size * sizeof( node_t ) ) );
     log_d("start tree_building");
     first_find_range_Kernel<BLOCK_SIZE> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, (unsigned int)s, tmp_tree );
     cudaDeviceSynchronize();
@@ -884,7 +884,7 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 
     cudaEvent_t start_tree = 0, stop_tree = 0;
     start_timer( &start_tree, &stop_tree );
-    if( conf.tree_depth && build_tree( pos, s, tree ) ) {
+    if( conf.tree_depth && build_tree( pos, n, tree ) ) {
         log_e( "error tree building" );
         return 1;
     }
