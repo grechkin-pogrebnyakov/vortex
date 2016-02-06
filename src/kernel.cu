@@ -308,13 +308,13 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
     float medians[ branch_count ];
     uint8_t axe[ branch_count ];
 
-    for( unsigned int i = 0; i < branch_count; ++i ) {
-        medians[i] = tree[i].med;
-        axe[i] = tree[i].axe;
-        arr[size * tid + 4 * i + 0] = x_max;
-        arr[size * tid + 4 * i + 1] = x_min;
-        arr[size * tid + 4 * i + 2] = y_max;
-        arr[size * tid + 4 * i + 3] = y_min;
+    for( unsigned int j = 0; i < branch_count; ++i ) {
+        medians[j] = tree[i].med;
+        axe[j] = tree[j].axe;
+        arr[size * tid + 4 * j + 0] = x_max;
+        arr[size * tid + 4 * j + 1] = x_min;
+        arr[size * tid + 4 * j + 2] = y_max;
+        arr[size * tid + 4 * j + 3] = y_min;
     }
 
     while( i < s ) {
@@ -322,10 +322,6 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         float y_1 = (float)pos[i].r[1];
         unsigned int tree_id_1 = pos[i].tree_id;
         tree_id_1 = pos[i].tree_id = ( x_1 > medians[tree_id_1] ) * ( ( axe[tree_id_1] + 1) % 2 ) + ( y_1 > medians[tree_id_1] ) *  axe[tree_id_1] + 2 * tree_id_1;
-        float x_2 = (float)pos[i + block_size].r[0];
-        float y_2 = (float)pos[i + block_size].r[1];
-        unsigned int tree_id_2 = pos[i + block_size].tree_id;
-        tree_id_2 = pos[i + block_size].tree_id = ( x_2 > medians[tree_id_2] ) * ( ( axe[tree_id_2] + 1) % 2 ) + ( y_2 > medians[tree_id_2] ) *  axe[tree_id_2] + 2 * tree_id_2;
         // x_min
         arr[size * tid + 4 * tree_id_1 + 0] = fminf( arr[size * tid + 4 * tree_id_1 + 0], x_1 );
         // x_max
@@ -335,14 +331,20 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         // y_max
         arr[size * tid + 4 * tree_id_1 + 3] = fmaxf( arr[size + tid + 4 * tree_id_1 + 3], y_1 );
 
-        // x_min
-        arr[size * tid + 4 * tree_id_2 + 0] = fminf( arr[size * tid + 4 * tree_id_2 + 0], x_2 );
-        // x_max
-        arr[size * tid + 4 * tree_id_2 + 1] = fmaxf( arr[size * tid + 4 * tree_id_2 + 1], x_2 );
-        // y_min
-        arr[size * tid + 4 * tree_id_2 + 2] = fminf( arr[size + tid + 4 * tree_id_2 + 2], y_2 );
-        // y_max
-        arr[size * tid + 4 * tree_id_2 + 3] = fmaxf( arr[size + tid + 4 * tree_id_2 + 3], y_2 );
+        if( i + block_size < s ) {
+            float x_2 = (float)pos[i + block_size].r[0];
+            float y_2 = (float)pos[i + block_size].r[1];
+            unsigned int tree_id_2 = pos[i + block_size].tree_id;
+            tree_id_2 = pos[i + block_size].tree_id = ( x_2 > medians[tree_id_2] ) * ( ( axe[tree_id_2] + 1) % 2 ) + ( y_2 > medians[tree_id_2] ) *  axe[tree_id_2] + 2 * tree_id_2;
+            // x_min
+            arr[size * tid + 4 * tree_id_2 + 0] = fminf( arr[size * tid + 4 * tree_id_2 + 0], x_2 );
+            // x_max
+            arr[size * tid + 4 * tree_id_2 + 1] = fmaxf( arr[size * tid + 4 * tree_id_2 + 1], x_2 );
+            // y_min
+            arr[size * tid + 4 * tree_id_2 + 2] = fminf( arr[size + tid + 4 * tree_id_2 + 2], y_2 );
+            // y_max
+            arr[size * tid + 4 * tree_id_2 + 3] = fmaxf( arr[size + tid + 4 * tree_id_2 + 3], y_2 );
+        }
         i += grid_size;
     }
     __syncthreads();
@@ -448,12 +450,12 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
     }
     if( 0 == tid ) {
         for( int i = 0; i < branch_count; ++i ) {
-            float x_min = arr[0 + 4 * i], x_max = arr[1 + 4 * i];
-            float y_min = arr[2 + 4 * i], y_max = arr[3 + 4 * i];
-            output[branch_count * blockIdx.x + i].x_min = x_min;
-            output[blockIdx.x * branch_count + i].x_max = x_max;
-            output[blockIdx.x * branch_count + i].y_min = y_min;
-            output[blockIdx.x * branch_count + i].y_min = y_max;
+            float xx_min = arr[0 + 4 * i], xx_max = arr[1 + 4 * i];
+            float yy_min = arr[2 + 4 * i], yy_max = arr[3 + 4 * i];
+            output[branch_count * blockIdx.x + i].x_min = xx_min;
+            output[blockIdx.x * branch_count + i].x_max = xx_max;
+            output[blockIdx.x * branch_count + i].y_min = yy_min;
+            output[blockIdx.x * branch_count + i].y_max = yy_max;
         }
     }
 }
@@ -607,17 +609,17 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
     }
     if( 0 == tid ) {
         for( int i = 0; i < branch_count; ++i ) {
-            float x_min = arr[0 + 4 * i], x_max = arr[1 + 4 * i];
-            float y_min = arr[2 + 4 * i], y_max = arr[3 + 4 * i];
-            output[branch_count * blockIdx.x + i].x_min = x_min;
-            output[blockIdx.x * branch_count + i].x_max = x_max;
-            output[blockIdx.x * branch_count + i].y_min = y_min;
-            output[blockIdx.x * branch_count + i].y_min = y_max;
+            float xx_min = arr[0 + 4 * i], xx_max = arr[1 + 4 * i];
+            float yy_min = arr[2 + 4 * i], yy_max = arr[3 + 4 * i];
+            output[branch_count * blockIdx.x + i].x_min = xx_min;
+            output[blockIdx.x * branch_count + i].x_max = xx_max;
+            output[blockIdx.x * branch_count + i].y_min = yy_min;
+            output[blockIdx.x * branch_count + i].y_max = yy_max;
             if( x_max - x_min > y_max - y_min ) {
-                output[blockIdx.x * branch_count + i].med = (x_max + x_min) / 2.0;
+                output[blockIdx.x * branch_count + i].med = (xx_max + xx_min) / 2.0;
                 output[blockIdx.x * branch_count + i].axe = 0;
             } else {
-                output[blockIdx.x * branch_count + i].med = (y_max + y_min) / 2.0;
+                output[blockIdx.x * branch_count + i].med = (yy_max + yy_min) / 2.0;
                 output[blockIdx.x * branch_count + i].axe = 1;
             }
         }
@@ -656,10 +658,6 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
         float y_1 = (float)pos[i].r[1];
         float g_1 = (float)pos[i].g;
         unsigned int tree_id_1 = pos[i].tree_id;
-        float x_2 = (float)pos[i + block_size].r[0];
-        float y_2 = (float)pos[i + block_size].r[1];
-        float g_2 = (float)pos[i + block_size].tree_id;
-        unsigned int tree_id_2 = pos[i + block_size].tree_id;
         if( g_1 > 0 ) {
             // g_1_above
             arr[size * tid + 6 * tree_id_1 + 0] += g_1;
@@ -675,20 +673,26 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
             // yg_1_below
             arr[size * tid + 6 * tree_id_1 + 5] += y_1 * g_1;
         }
-        if( g_2 > 0 ) {
-            // g_1_above
-            arr[size * tid + 6 * tree_id_2 + 0] += g_2;
-            // xg_1_above
-            arr[size * tid + 6 * tree_id_2 + 1] += x_2 * g_2;
-            // yg_1_above
-            arr[size * tid + 6 * tree_id_2 + 2] += y_2 * g_2;
-        } else {
-            // g_1_below
-            arr[size * tid + 6 * tree_id_2 + 3] += g_2;
-            // xg_1_below
-            arr[size * tid + 6 * tree_id_2 + 4] += x_1 * g_2;
-            // yg_1_below
-            arr[size * tid + 6 * tree_id_2 + 5] += y_1 * g_2;
+        if( i + block_size < s ) {
+            float x_2 = (float)pos[i + block_size].r[0];
+            float y_2 = (float)pos[i + block_size].r[1];
+            float g_2 = (float)pos[i + block_size].tree_id;
+            unsigned int tree_id_2 = pos[i + block_size].tree_id;
+            if( g_2 > 0 ) {
+                // g_1_above
+                arr[size * tid + 6 * tree_id_2 + 0] += g_2;
+                // xg_1_above
+                arr[size * tid + 6 * tree_id_2 + 1] += x_2 * g_2;
+                // yg_1_above
+                arr[size * tid + 6 * tree_id_2 + 2] += y_2 * g_2;
+            } else {
+                // g_1_below
+                arr[size * tid + 6 * tree_id_2 + 3] += g_2;
+                // xg_1_below
+                arr[size * tid + 6 * tree_id_2 + 4] += x_1 * g_2;
+                // yg_1_below
+                arr[size * tid + 6 * tree_id_2 + 5] += y_1 * g_2;
+            }
         }
         i += grid_size;
     }
@@ -813,8 +817,6 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
     }
     if( 0 == tid ) {
         for( int i = 0; i < branch_count; ++i ) {
-            float x_min = arr[0 + 4 * i], x_max = arr[1 + 4 * i];
-            float y_min = arr[2 + 4 * i], y_max = arr[3 + 4 * i];
             output[branch_count * blockIdx.x + i].g_above = arr[6 * i + 0];
             output[blockIdx.x * branch_count + i].xg_above = arr[6 * i + 1];
             output[blockIdx.x * branch_count + i].yg_above = arr[6 * i + 2];
