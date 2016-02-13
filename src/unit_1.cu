@@ -886,28 +886,30 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 
     static node_t *tree = NULL;
     static size_t tree_size = 0;
-    if ( !tree_size )
-    {
-        for( size_t i = 0; i < conf.tree_depth; ++i ) {
-            tree_size += 1 << i;
+    if( conf.tree_depth > 1 ) {
+        if ( !tree_size )
+        {
+            for( size_t i = 0; i < conf.tree_depth; ++i ) {
+                tree_size += 1 << i;
+            }
+            log_e( "tree_size = %zu", tree_size );
         }
-        log_e( "tree_size = %zu", tree_size );
-    }
-    if( !tree )
-        cuda_safe( cudaMalloc( (void**)&tree, tree_size * sizeof( node_t ) ) );
+        if( !tree )
+            cuda_safe( cudaMalloc( (void**)&tree, tree_size * sizeof( node_t ) ) );
 
 
-    cudaEvent_t start_tree = 0, stop_tree = 0;
-    start_timer( &start_tree, &stop_tree );
-    if( conf.tree_depth && build_tree( pos, n, tree ) ) {
-        log_e( "error tree building" );
-        return 1;
+        cudaEvent_t start_tree = 0, stop_tree = 0;
+        start_timer( &start_tree, &stop_tree );
+        if( conf.tree_depth && build_tree( pos, n, tree ) ) {
+            log_e( "error tree building" );
+            return 1;
+        }
+        log_e("tree_time = %f", stop_timer( start_tree, stop_tree ));
+        node_t *host_tree = (node_t*)malloc(sizeof(node_t) * tree_size);
+        cuda_safe( cudaMemcpy( (void*)host_tree, (void*)tree, tree_size * sizeof( node_t ), cudaMemcpyDeviceToHost ) );
+        output_tree(host_tree, conf.tree_depth, current_step);
+        free(host_tree);
     }
-    log_e("tree_time = %f", stop_timer( start_tree, stop_tree ));
-    node_t *host_tree = (node_t*)malloc(sizeof(node_t) * tree_size);
-    cuda_safe( cudaMemcpy( (void*)host_tree, (void*)tree, tree_size * sizeof( node_t ), cudaMemcpyDeviceToHost ) );
-    output_tree(host_tree, conf.tree_depth, current_step);
-    free(host_tree);
 
     shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
