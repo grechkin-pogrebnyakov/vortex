@@ -1029,8 +1029,8 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
     for( int j = 0; j < level - 1; ++j )
         tree += (1 << j);
 
-    for( int j = level; j >= 1; --j ) {
-        unsigned count_on_level = 1 < (j - 1);
+    for( int j = level - 1; j >= 0; --j ) {
+        unsigned count_on_level = 1 < j;
         for( unsigned jj = 0; jj < count_on_level; jj += block_size ) {
             unsigned k = jj + i;
             if( k < count_on_level ) {
@@ -1042,6 +1042,7 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
                 tree[k].yg_below = tree[2 * k + count_on_level].yg_below + tree[2 * k + count_on_level + 1].yg_below;
             }
         }
+        tree -= (1 << (j - 1));
     }
 
 }
