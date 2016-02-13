@@ -308,7 +308,7 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
     float medians[ branch_count ];
     uint8_t axe[ branch_count ];
 
-    for( unsigned int j = 0; i < branch_count; ++i ) {
+    for( unsigned int j = 0; j < branch_count; ++j ) {
         medians[j] = tree[i].med;
         axe[j] = tree[j].axe;
         arr[size * tid + 4 * j + 0] = x_max;
