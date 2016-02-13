@@ -855,6 +855,23 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     return 0;
 }
 
+static void output_tree( tree_t *t, size_t depth, int current_step ) {
+    char filename[64];
+    snprintf(filename, sizeof(filename), "tree_%d", current_step);
+    FILE *f = fopen(filename, "w");
+    for( size_t j = 0; j < depth - 1; ++j ) {
+        unsigned count_on_level = 1 < j;
+        fprintf( f, "level = %zu\n", j );
+        for( size_t jj = 0; jj < count_on_level; ++jj ) {
+            fprintf( f, "i = %zu x_min = %f x_max = %f y_min = %f y_max = %f axe = %u g_above = %f xg_above = %f yg_above = %f g_below = %f xg_below = %f yg_below = %f",
+            jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below, t[jj].xg_below, t[jj].yg_below );
+        }
+        t += (1 << j);
+    }
+    fclose(f);
+
+}
+
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
     log_d("speed");
     extern int current_step;
@@ -891,6 +908,7 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
     log_e("tree_time = %f", stop_timer( start_tree, stop_tree ));
     node_t *host_tree = (node_t*)malloc(sizeof(node_t) * tree_size);
     cuda_safe( cudaMemcpy( (void*)host_tree, (void*)tree, tree_size * sizeof( node_t ), cudaMemcpyDeviceToHost ) );
+    output_tree(host_tree, conf.tree_depth, current_step);
     free(host_tree);
 
     shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
