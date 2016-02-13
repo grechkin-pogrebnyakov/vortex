@@ -663,7 +663,6 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
-    /*
     node_t *tree_pointer = tree;
     static node_t *tmp_tree_2 = NULL;
     if( !tmp_tree_2 )
@@ -850,23 +849,22 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
             return 1;
         }//if
     }
-*/
     log_d("finish tree_building");
     return 0;
 }
 
 static void output_tree( tree_t *t, size_t depth, int current_step ) {
     char filename[64];
-    snprintf(filename, sizeof(filename), "tree_%d", current_step);
+    snprintf(filename, sizeof(filename), "tree_%d.txt", current_step);
     FILE *f = fopen(filename, "w");
     for( size_t j = 0; j < depth - 1; ++j ) {
-        unsigned count_on_level = 1 < j;
-        fprintf( f, "level = %zu\n", j );
+        unsigned count_on_level = 1 << j;
+        fprintf( f, "\nlevel = %zu\n", j );
         for( size_t jj = 0; jj < count_on_level; ++jj ) {
-            fprintf( f, "i = %zu x_min = %f x_max = %f y_min = %f y_max = %f axe = %u g_above = %f xg_above = %f yg_above = %f g_below = %f xg_below = %f yg_below = %f",
+            fprintf( f, "i = %zu\nx_min = %f\nx_max = %f\ny_min = %f\ny_max = %f\naxe = %u\ng_above = %f\nxg_above = %f\nyg_above = %f\ng_below = %f\nxg_below = %f\nyg_below = %f\n\n",
             jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below, t[jj].xg_below, t[jj].yg_below );
         }
-        t += (1 << j);
+        t += count_on_level;
     }
     fclose(f);
 

@@ -1030,7 +1030,7 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
         tree += (1 << j);
 
     for( int j = level - 1; j >= 0; --j ) {
-        unsigned count_on_level = 1 < j;
+        unsigned count_on_level = 1 << j;
         for( unsigned jj = 0; jj < count_on_level; jj += block_size ) {
             unsigned k = jj + i;
             if( k < count_on_level ) {
