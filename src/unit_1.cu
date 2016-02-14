@@ -861,8 +861,8 @@ static void output_tree( tree_t *t, size_t depth, int current_step ) {
         unsigned count_on_level = 1 << j;
         fprintf( f, "\nlevel = %zu\n", j );
         for( size_t jj = 0; jj < count_on_level; ++jj ) {
-            fprintf( f, "i = %zu\nx_min = %f\nx_max = %f\ny_min = %f\ny_max = %f\naxe = %u\ng_above = %f\nxg_above = %f\nyg_above = %f\ng_below = %f\nxg_below = %f\nyg_below = %f\n\n",
-            jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below, t[jj].xg_below, t[jj].yg_below );
+            fprintf( f, "i = %zu\nx_min = %f\nx_max = %f\ny_min = %f\ny_max = %f\naxe = %u\nmed = %f\ng_above = %f\nxg_above = %f\nyg_above = %f\ng_below = %f\nxg_below = %f\nyg_below = %f\n\n",
+            jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].med, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below, t[jj].xg_below, t[jj].yg_below );
         }
         t += count_on_level;
     }
