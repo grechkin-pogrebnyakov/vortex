@@ -297,7 +297,7 @@ __global__ void second_find_range_Kernel<BLOCK_SIZE>( node_t *input, unsigned in
 template <size_t block_size, size_t level>
 __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output ) {
     unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int ii = blockIdx.x * ( block_size * 2 ) + tid;
     unsigned int grid_size = block_size * 2 * gridDim.x;
     const unsigned int size = 4 << level;
     __shared__ float arr[size * block_size];
@@ -309,7 +309,7 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
     uint8_t axe[ branch_count ];
 
     for( unsigned int j = 0; j < branch_count; ++j ) {
-        medians[j] = tree[i].med;
+        medians[j] = tree[j].med;
         axe[j] = tree[j].axe;
         arr[size * tid + 4 * j + 0] = x_max;
         arr[size * tid + 4 * j + 1] = x_min;
@@ -317,11 +317,11 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         arr[size * tid + 4 * j + 3] = y_min;
     }
 
-    while( i < s ) {
-        float x_1 = (float)pos[i].r[0];
-        float y_1 = (float)pos[i].r[1];
-        unsigned int tree_id_1 = pos[i].tree_id;
-        tree_id_1 = pos[i].tree_id = ( x_1 > medians[tree_id_1] ) * ( ( axe[tree_id_1] + 1) % 2 ) + ( y_1 > medians[tree_id_1] ) *  axe[tree_id_1] + 2 * tree_id_1;
+    while( ii < s ) {
+        float x_1 = (float)pos[ii].r[0];
+        float y_1 = (float)pos[ii].r[1];
+        unsigned int tree_id_1 = pos[ii].tree_id;
+        tree_id_1 = pos[ii].tree_id = ( x_1 > medians[tree_id_1] ) * ( ( axe[tree_id_1] + 1) % 2 ) + ( y_1 > medians[tree_id_1] ) *  axe[tree_id_1] + 2 * tree_id_1;
         // x_min
         arr[size * tid + 4 * tree_id_1 + 0] = fminf( arr[size * tid + 4 * tree_id_1 + 0], x_1 );
         // x_max
@@ -331,11 +331,11 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         // y_max
         arr[size * tid + 4 * tree_id_1 + 3] = fmaxf( arr[size + tid + 4 * tree_id_1 + 3], y_1 );
 
-        if( i + block_size < s ) {
-            float x_2 = (float)pos[i + block_size].r[0];
-            float y_2 = (float)pos[i + block_size].r[1];
-            unsigned int tree_id_2 = pos[i + block_size].tree_id;
-            tree_id_2 = pos[i + block_size].tree_id = ( x_2 > medians[tree_id_2] ) * ( ( axe[tree_id_2] + 1) % 2 ) + ( y_2 > medians[tree_id_2] ) *  axe[tree_id_2] + 2 * tree_id_2;
+        if( ii + block_size < s ) {
+            float x_2 = (float)pos[ii + block_size].r[0];
+            float y_2 = (float)pos[ii + block_size].r[1];
+            unsigned int tree_id_2 = pos[ii + block_size].tree_id;
+            tree_id_2 = pos[ii + block_size].tree_id = ( x_2 > medians[tree_id_2] ) * ( ( axe[tree_id_2] + 1) % 2 ) + ( y_2 > medians[tree_id_2] ) *  axe[tree_id_2] + 2 * tree_id_2;
             // x_min
             arr[size * tid + 4 * tree_id_2 + 0] = fminf( arr[size * tid + 4 * tree_id_2 + 0], x_2 );
             // x_max
@@ -345,7 +345,7 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
             // y_max
             arr[size * tid + 4 * tree_id_2 + 3] = fmaxf( arr[size + tid + 4 * tree_id_2 + 3], y_2 );
         }
-        i += grid_size;
+        ii += grid_size;
     }
     __syncthreads();
 
@@ -470,7 +470,7 @@ template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 6>( Vortex *pos, u
 template <size_t block_size, size_t level>
 __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t *output ) {
     unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int ii = blockIdx.x * ( block_size * 2 ) + tid;
     unsigned int grid_size = block_size * 2 * gridDim.x;
     const unsigned int size = 4 << level;
 
@@ -485,16 +485,16 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
         arr[size * tid + 4 * i + 3] = y_min;
     }
 
-    while( i < s ) {
+    while( ii < s ) {
         for( unsigned int j = 0; j < branch_count; ++j ) {
-            float x_min_1 = input[i * branch_count + j].x_min;
-            float x_max_1 = input[i * branch_count + j].x_max;
-            float y_min_1 = input[i * branch_count + j].y_min;
-            float y_max_1 = input[i * branch_count + j].y_max;
-            float x_min_2 = input[(i + block_size) * branch_count + j].x_min;
-            float x_max_2 = input[(i + block_size) * branch_count + j].x_max;
-            float y_min_2 = input[(i + block_size) * branch_count + j].y_min;
-            float y_max_2 = input[(i + block_size) * branch_count + j].y_max;
+            float x_min_1 = input[ii * branch_count + j].x_min;
+            float x_max_1 = input[ii * branch_count + j].x_max;
+            float y_min_1 = input[ii * branch_count + j].y_min;
+            float y_max_1 = input[ii * branch_count + j].y_max;
+            float x_min_2 = input[(ii + block_size) * branch_count + j].x_min;
+            float x_max_2 = input[(ii + block_size) * branch_count + j].x_max;
+            float y_min_2 = input[(ii + block_size) * branch_count + j].y_min;
+            float y_max_2 = input[(ii + block_size) * branch_count + j].y_max;
             // x_min
             arr[size * tid + 4 * j + 0] = fminf( arr[size * tid + 4 * j + 0], fminf( x_min_1, x_min_2 ) );
             // x_max
@@ -504,7 +504,7 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
             // y_max
             arr[size * tid + 4 * j + 3] = fmaxf( arr[size + tid + 4 * j + 3], fmaxf( y_max_1, y_max_2 ) );
         }
-        i += grid_size;
+        ii += grid_size;
     }
     __syncthreads();
 
@@ -615,7 +615,7 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
             output[blockIdx.x * branch_count + i].x_max = xx_max;
             output[blockIdx.x * branch_count + i].y_min = yy_min;
             output[blockIdx.x * branch_count + i].y_max = yy_max;
-            if( x_max - x_min > y_max - y_min ) {
+            if( xx_max - xx_min > yy_max - yy_min ) {
                 output[blockIdx.x * branch_count + i].med = (xx_max + xx_min) / 2.0;
                 output[blockIdx.x * branch_count + i].axe = 0;
             } else {
