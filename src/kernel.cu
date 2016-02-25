@@ -330,6 +330,27 @@ template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 4>( node_t *input
 template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 5>( node_t *input, unsigned int s, node_t *output );
 template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 6>( node_t *input, unsigned int s, node_t *output );
 
+#define SUM_ARRAY( __left__, __right__ ) \
+    arr[ __left__ ] += arr[ __right__ ]
+
+#define SUM_ARRAY_STEP( __left, __right ) \
+    SUM_ARRAY( __left + 0, __right + 0 ); \
+    SUM_ARRAY( __left + 1, __right + 1 ); \
+    SUM_ARRAY( __left + 2, __right + 2 ); \
+    SUM_ARRAY( __left + 3, __right + 3 ); \
+    SUM_ARRAY( __left + 4, __right + 4 ); \
+    SUM_ARRAY( __left + 5, __right + 5 )
+
+#define LEAVES_PARAMS_REDUCE_STEP(_max_tid_ ) \
+    if( block_size >= 2 * _max_tid_ ) { \
+        if( tid < _max_tid_ ) { \
+            for( int i = 0; i < branch_count; ++i ) { \
+                SUM_ARRAY_STEP( tid * size + 6 * i, ( tid + _max_tid_ ) * size + 6 * i ); \
+                __syncthreads(); \
+            } \
+        } \
+    }
+
 template <size_t block_size, size_t level>
 __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output ) {
     unsigned int tid = threadIdx.x;
@@ -395,123 +416,15 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
     }
     __syncthreads();
 
-    if( block_size >= 512 ) {
-        if( tid < 256 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 256 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 256 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 256 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 256 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 256 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 256 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 256 ) {
-        if( tid < 128 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 128 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 128 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 128 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 128 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 128 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 128 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 128 ) {
-        if( tid < 64 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 64 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 64 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 64 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 64 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 64 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 64 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 64 ) {
-        if( tid < 32 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 32 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 32 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 32 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 32 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 32 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 32 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 32 ) {
-        if( tid < 16 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 16 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 16 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 16 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 16 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 16 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 16 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 16 ) {
-        if( tid < 8 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 8 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 8 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 8 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 8 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 8 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 8 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 8 ) {
-        if( tid < 4 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 4 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 4 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 4 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 4 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 4 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 4 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 4 ) {
-        if( tid < 2 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 2 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 2 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 2 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 2 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 2 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 2 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 2 ) {
-        if( tid < 1 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 1 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 1 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 1 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 1 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 1 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 1 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
+    LEAVES_PARAMS_REDUCE_STEP( 256 );
+    LEAVES_PARAMS_REDUCE_STEP( 128 );
+    LEAVES_PARAMS_REDUCE_STEP(  64 );
+    LEAVES_PARAMS_REDUCE_STEP(  32 );
+    LEAVES_PARAMS_REDUCE_STEP(  16 );
+    LEAVES_PARAMS_REDUCE_STEP(   8 );
+    LEAVES_PARAMS_REDUCE_STEP(   4 );
+    LEAVES_PARAMS_REDUCE_STEP(   2 );
+    LEAVES_PARAMS_REDUCE_STEP(   1 );
     if( 0 == tid ) {
         for( int i = 0; i < branch_count; ++i ) {
             output[branch_count * blockIdx.x + i].g_above = arr[6 * i + 0];
@@ -582,123 +495,16 @@ __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s,
     }
     __syncthreads();
 
-    if( block_size >= 512 ) {
-        if( tid < 256 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 256 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 256 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 256 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 256 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 256 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 256 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 256 ) {
-        if( tid < 128 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 128 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 128 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 128 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 128 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 128 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 128 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 128 ) {
-        if( tid < 64 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 64 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 64 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 64 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 64 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 64 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 64 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 64 ) {
-        if( tid < 32 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 32 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 32 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 32 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 32 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 32 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 32 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 32 ) {
-        if( tid < 16 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 16 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 16 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 16 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 16 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 16 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 16 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 16 ) {
-        if( tid < 8 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 8 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 8 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 8 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 8 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 8 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 8 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 8 ) {
-        if( tid < 4 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 4 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 4 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 4 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 4 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 4 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 4 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 4 ) {
-        if( tid < 2 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 2 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 2 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 2 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 2 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 2 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 2 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
-    if( block_size >= 2 ) {
-        if( tid < 1 ) {
-            for( int i = 0; i < branch_count; ++i ) {
-                arr[tid * size + 6 * i + 0] += arr[( tid + 1 ) * size + 6 * i + 0];
-                arr[tid * size + 6 * i + 1] += arr[( tid + 1 ) * size + 6 * i + 1];
-                arr[tid * size + 6 * i + 2] += arr[( tid + 1 ) * size + 6 * i + 2];
-                arr[tid * size + 6 * i + 3] += arr[( tid + 1 ) * size + 6 * i + 3];
-                arr[tid * size + 6 * i + 4] += arr[( tid + 1 ) * size + 6 * i + 4];
-                arr[tid * size + 6 * i + 5] += arr[( tid + 1 ) * size + 6 * i + 5];
-            }
-            __syncthreads();
-        }
-    }
+    LEAVES_PARAMS_REDUCE_STEP( 256 );
+    LEAVES_PARAMS_REDUCE_STEP( 128 );
+    LEAVES_PARAMS_REDUCE_STEP(  64 );
+    LEAVES_PARAMS_REDUCE_STEP(  32 );
+    LEAVES_PARAMS_REDUCE_STEP(  16 );
+    LEAVES_PARAMS_REDUCE_STEP(   8 );
+    LEAVES_PARAMS_REDUCE_STEP(   4 );
+    LEAVES_PARAMS_REDUCE_STEP(   2 );
+    LEAVES_PARAMS_REDUCE_STEP(   1 );
+
     if( 0 == tid ) {
         for( int i = 0; i < branch_count; ++i ) {
             output[branch_count * blockIdx.x + i].g_above = arr[6 * i + 0];

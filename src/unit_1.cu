@@ -746,7 +746,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
             return 1;
         }//if
     }
-/*
+
     if( 7 == conf.tree_depth ) {
         first_find_leaves_params_Kernel<BLOCK_SIZE, 6> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
         cudaDeviceSynchronize();
@@ -849,8 +849,8 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
             return 1;
         }//if
     }
-*/
-    log_e("finish tree_building");
+
+    log_d("finish tree_building");
     return 0;
 }
 
