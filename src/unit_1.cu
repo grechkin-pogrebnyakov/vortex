@@ -748,7 +748,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     }
 
     if( 7 == conf.tree_depth ) {
-        first_find_leaves_params_Kernel<BLOCK_SIZE, 6> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 6> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 );
         cudaDeviceSynchronize();
         if( cuda_safe( cudaGetLastError() ) ) {
             return 1;
@@ -765,7 +765,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         }//if
     }
     if( 6 == conf.tree_depth ) {
-        first_find_leaves_params_Kernel<BLOCK_SIZE, 5> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 5> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 );
         cudaDeviceSynchronize();
         if( cuda_safe( cudaGetLastError() ) ) {
             return 1;
@@ -782,7 +782,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         }//if
     }
     if( 5 == conf.tree_depth ) {
-        first_find_leaves_params_Kernel<BLOCK_SIZE, 4> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 4> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 );
         cudaDeviceSynchronize();
         if( cuda_safe( cudaGetLastError() ) ) {
             return 1;
@@ -799,7 +799,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         }//if
     }
     if( 4 == conf.tree_depth ) {
-        first_find_leaves_params_Kernel<BLOCK_SIZE, 3> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 3> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 );
         cudaDeviceSynchronize();
         if( cuda_safe( cudaGetLastError() ) ) {
             return 1;
@@ -816,7 +816,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         }//if
     }
     if( 3 == conf.tree_depth ) {
-        first_find_leaves_params_Kernel<BLOCK_SIZE, 2> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 2> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 );
         cudaDeviceSynchronize();
         if( cuda_safe( cudaGetLastError() ) ) {
             return 1;
@@ -833,7 +833,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         }//if
     }
     if( 2 == conf.tree_depth ) {
-        first_find_leaves_params_Kernel<BLOCK_SIZE, 1> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, second_reduce_size, tmp_tree_2 );
+        first_find_leaves_params_Kernel<BLOCK_SIZE, 1> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 );
         cudaDeviceSynchronize();
         if( cuda_safe( cudaGetLastError() ) ) {
             return 1;

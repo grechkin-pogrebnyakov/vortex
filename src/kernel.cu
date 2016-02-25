@@ -371,50 +371,40 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
         arr[size * tid + 6 * i + 5] = 0;
     }
 
-    while( i < s ) {
-        float x_1 = (float)pos[i].r[0];
-        float y_1 = (float)pos[i].r[1];
-        float g_1 = (float)pos[i].g;
-        unsigned int tree_id_1 = pos[i].tree_id;
-        if( g_1 > 0 ) {
-            // g_1_above
-            arr[size * tid + 6 * tree_id_1 + 0] += g_1;
-            // xg_1_above
-            arr[size * tid + 6 * tree_id_1 + 1] += x_1 * g_1;
-            // yg_1_above
-            arr[size * tid + 6 * tree_id_1 + 2] += y_1 * g_1;
-        } else {
-            // g_1_below
-            arr[size * tid + 6 * tree_id_1 + 3] += g_1;
-            // xg_1_below
-            arr[size * tid + 6 * tree_id_1 + 4] += x_1 * g_1;
-            // yg_1_below
-            arr[size * tid + 6 * tree_id_1 + 5] += y_1 * g_1;
+    float x = 0, y = 0, g = 0;
+    unsigned tree_id = 0;
+
+#define PREPARE_ARRAY(_index_) \
+        x = (float)pos[_index_].r[0]; \
+        y = (float)pos[_index_].r[1]; \
+        g = (float)pos[_index_].g; \
+        tree_id = pos[_index_].tree_id; \
+        if( g > 0 ) { \
+            /* g_1_above */ \
+            arr[size * tid + 6 * tree_id + 0] += g; \
+            /* xg_1_above */ \
+            arr[size * tid + 6 * tree_id + 1] += x * g; \
+            /* yg_1_above */ \
+            arr[size * tid + 6 * tree_id + 2] += y * g; \
+        } else { \
+            /* g_1_below */ \
+            arr[size * tid + 6 * tree_id + 3] += g; \
+            /* xg_1_below */ \
+            arr[size * tid + 6 * tree_id + 4] += x * g; \
+            /* yg_1_below */ \
+            arr[size * tid + 6 * tree_id + 5] += y * g; \
         }
+
+    while( i < s ) {
+        PREPARE_ARRAY( i );
         if( i + block_size < s ) {
-            float x_2 = (float)pos[i + block_size].r[0];
-            float y_2 = (float)pos[i + block_size].r[1];
-            float g_2 = (float)pos[i + block_size].tree_id;
-            unsigned int tree_id_2 = pos[i + block_size].tree_id;
-            if( g_2 > 0 ) {
-                // g_1_above
-                arr[size * tid + 6 * tree_id_2 + 0] += g_2;
-                // xg_1_above
-                arr[size * tid + 6 * tree_id_2 + 1] += x_2 * g_2;
-                // yg_1_above
-                arr[size * tid + 6 * tree_id_2 + 2] += y_2 * g_2;
-            } else {
-                // g_1_below
-                arr[size * tid + 6 * tree_id_2 + 3] += g_2;
-                // xg_1_below
-                arr[size * tid + 6 * tree_id_2 + 4] += x_1 * g_2;
-                // yg_1_below
-                arr[size * tid + 6 * tree_id_2 + 5] += y_1 * g_2;
-            }
+            PREPARE_ARRAY( i + block_size );
         }
         i += grid_size;
     }
     __syncthreads();
+
+#undef PREPARE_ARRAY
 
     LEAVES_PARAMS_REDUCE_STEP( 256 );
     LEAVES_PARAMS_REDUCE_STEP( 128 );
