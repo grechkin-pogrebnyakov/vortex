@@ -666,7 +666,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     node_t *tree_pointer = tree;
     static node_t *tmp_tree_2 = NULL;
     if( !tmp_tree_2 )
-        cuda_safe( cudaMalloc( (void**)&tmp_tree_2, BLOCK_SIZE * sizeof( node_t ) * (2 << conf.tree_depth) ) );
+        cuda_safe( cudaMalloc( (void**)&tmp_tree_2, second_reduce_size * sizeof( node_t ) * (2 << conf.tree_depth) ) );
 
     if( conf.tree_depth > 1 ) {
         first_tree_reduce_Kernel<BLOCK_SIZE, 1> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
