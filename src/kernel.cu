@@ -12,6 +12,7 @@
 #include "device_launch_parameters.h"
 #include "device_functions.h"
 #include "math_functions.h"
+#include <assert.h>
 
 extern __constant__ TVars dt;
 extern __constant__ size_t quant;
@@ -38,14 +39,16 @@ extern __constant__ TVars rc_y;
     arr[__index + 3] = y_min
 
 #define LEFT_AND_RIGHT_FUNC( _left_, _right_, _func_ ) \
-    arr[ _left_ ] = _func_( arr[ _left_ ], arr[ _right_ ] )
+    _left_ = _func_( _left_, _right_ )
 
+#define LEFT_AND_RIGHT_ARRAY_FUNC( __left__, __right__, __func__ ) \
+    LEFT_AND_RIGHT_FUNC( arr[ __left__ ], arr[ __right__ ], __func__ )
 
 #define MAX_AND_MIN_STEP( __left, __right ) \
-    LEFT_AND_RIGHT_FUNC( __left + 0, __right + 0, fminf ); \
-    LEFT_AND_RIGHT_FUNC( __left + 1, __right + 1, fmaxf ); \
-    LEFT_AND_RIGHT_FUNC( __left + 2, __right + 2, fminf ); \
-    LEFT_AND_RIGHT_FUNC( __left + 3, __right + 3, fmaxf )
+    LEFT_AND_RIGHT_ARRAY_FUNC( __left + 0, __right + 0, fminf ); \
+    LEFT_AND_RIGHT_ARRAY_FUNC( __left + 1, __right + 1, fmaxf ); \
+    LEFT_AND_RIGHT_ARRAY_FUNC( __left + 2, __right + 2, fminf ); \
+    LEFT_AND_RIGHT_ARRAY_FUNC( __left + 3, __right + 3, fmaxf )
 
 #define FIND_RANGE_REDUCE_STEP(_max_tid_ ) \
     if( block_size >= 2 * _max_tid_ ) { \
@@ -206,13 +209,13 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         unsigned int tree_id_1 = pos[ii].tree_id;
         tree_id_1 = pos[ii].tree_id = ( x_1 > medians[tree_id_1] ) * ( ( axe[tree_id_1] + 1) % 2 ) + ( y_1 > medians[tree_id_1] ) *  axe[tree_id_1] + 2 * tree_id_1;
         // x_min
-        arr[size * tid + 4 * tree_id_1 + 0] = fminf( arr[size * tid + 4 * tree_id_1 + 0], x_1 );
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 0], x_1, fminf );
         // x_max
-        arr[size * tid + 4 * tree_id_1 + 1] = fmaxf( arr[size * tid + 4 * tree_id_1 + 1], x_1 );
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 1], x_1, fmaxf );
         // y_min
-        arr[size * tid + 4 * tree_id_1 + 2] = fminf( arr[size + tid + 4 * tree_id_1 + 2], y_1 );
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 2], y_1, fminf );
         // y_max
-        arr[size * tid + 4 * tree_id_1 + 3] = fmaxf( arr[size + tid + 4 * tree_id_1 + 3], y_1 );
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 3], y_1, fmaxf );
 
         if( ii + block_size < s ) {
             float x_2 = (float)pos[ii + block_size].r[0];
@@ -220,13 +223,13 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
             unsigned int tree_id_2 = pos[ii + block_size].tree_id;
             tree_id_2 = pos[ii + block_size].tree_id = ( x_2 > medians[tree_id_2] ) * ( ( axe[tree_id_2] + 1) % 2 ) + ( y_2 > medians[tree_id_2] ) *  axe[tree_id_2] + 2 * tree_id_2;
             // x_min
-            arr[size * tid + 4 * tree_id_2 + 0] = fminf( arr[size * tid + 4 * tree_id_2 + 0], x_2 );
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 0], x_2, fminf );
             // x_max
-            arr[size * tid + 4 * tree_id_2 + 1] = fmaxf( arr[size * tid + 4 * tree_id_2 + 1], x_2 );
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 1], x_2, fmaxf );
             // y_min
-            arr[size * tid + 4 * tree_id_2 + 2] = fminf( arr[size + tid + 4 * tree_id_2 + 2], y_2 );
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 2], y_2, fminf );
             // y_max
-            arr[size * tid + 4 * tree_id_2 + 3] = fmaxf( arr[size + tid + 4 * tree_id_2 + 3], y_2 );
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 3], y_2, fmaxf );
         }
         ii += grid_size;
     }
@@ -282,6 +285,7 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
             float x_max_1 = input[ii * branch_count + j].x_max;
             float y_min_1 = input[ii * branch_count + j].y_min;
             float y_max_1 = input[ii * branch_count + j].y_max;
+            assert((ii + block_size) < s);
             float x_min_2 = input[(ii + block_size) * branch_count + j].x_min;
             float x_max_2 = input[(ii + block_size) * branch_count + j].x_max;
             float y_min_2 = input[(ii + block_size) * branch_count + j].y_min;
