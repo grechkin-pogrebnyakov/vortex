@@ -202,38 +202,29 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         axe[j] = tree[j].axe;
         SET_DEFAULT_ARR_VAL(size * tid + 4 * j);
     }
+    
+    float x = 0, y = 0;
+    unsigned tree_id = 0;
+
+#define CALCULATE_ARRAY( _index_ ) \
+        x = (float)pos[_index_].r[0]; \
+        y = (float)pos[_index_].r[1]; \
+        tree_id = pos[_index_].tree_id; \
+        tree_id = pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id; \
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 0], x, fminf ); \
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 1], x, fmaxf ); \
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 2], y, fminf ); \
+        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 3], y, fmaxf )
 
     while( ii < s ) {
-        float x_1 = (float)pos[ii].r[0];
-        float y_1 = (float)pos[ii].r[1];
-        unsigned int tree_id_1 = pos[ii].tree_id;
-        tree_id_1 = pos[ii].tree_id = ( x_1 > medians[tree_id_1] ) * ( ( axe[tree_id_1] + 1) % 2 ) + ( y_1 > medians[tree_id_1] ) *  axe[tree_id_1] + 2 * tree_id_1;
-        // x_min
-        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 0], x_1, fminf );
-        // x_max
-        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 1], x_1, fmaxf );
-        // y_min
-        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 2], y_1, fminf );
-        // y_max
-        LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_1 + 3], y_1, fmaxf );
-
+        CALCULATE_ARRAY( ii );
         if( ii + block_size < s ) {
-            float x_2 = (float)pos[ii + block_size].r[0];
-            float y_2 = (float)pos[ii + block_size].r[1];
-            unsigned int tree_id_2 = pos[ii + block_size].tree_id;
-            tree_id_2 = pos[ii + block_size].tree_id = ( x_2 > medians[tree_id_2] ) * ( ( axe[tree_id_2] + 1) % 2 ) + ( y_2 > medians[tree_id_2] ) *  axe[tree_id_2] + 2 * tree_id_2;
-            // x_min
-            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 0], x_2, fminf );
-            // x_max
-            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 1], x_2, fmaxf );
-            // y_min
-            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 2], y_2, fminf );
-            // y_max
-            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id_2 + 3], y_2, fmaxf );
+            CALCULATE_ARRAY( ii + block_size );
         }
         ii += grid_size;
     }
     __syncthreads();
+#undef CALCULATE_ARRAY
 
     TREE_REDUCE_REDUCE_STEP( 256 );
     TREE_REDUCE_REDUCE_STEP( 128 );
@@ -317,7 +308,7 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
         for( int i = 0; i < branch_count; ++i ) {
             float xx_min = arr[0 + 4 * i], xx_max = arr[1 + 4 * i];
             float yy_min = arr[2 + 4 * i], yy_max = arr[3 + 4 * i];
-            output[branch_count * blockIdx.x + i].x_min = xx_min;
+            output[blockIdx.x * branch_count + i].x_min = xx_min;
             output[blockIdx.x * branch_count + i].x_max = xx_max;
             output[blockIdx.x * branch_count + i].y_min = yy_min;
             output[blockIdx.x * branch_count + i].y_max = yy_max;
