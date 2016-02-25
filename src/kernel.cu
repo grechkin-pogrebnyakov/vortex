@@ -354,7 +354,7 @@ template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 6>( node_t *input
 template <size_t block_size, size_t level>
 __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output ) {
     unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int ii = blockIdx.x * ( block_size * 2 ) + tid;
     unsigned int grid_size = block_size * 2 * gridDim.x;
     const unsigned int size = 6 << level;
     __shared__ float arr[size * block_size];
@@ -395,12 +395,12 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
             arr[size * tid + 6 * tree_id + 5] += y * g; \
         }
 
-    while( i < s ) {
-        PREPARE_ARRAY( i );
-        if( i + block_size < s ) {
-            PREPARE_ARRAY( i + block_size );
+    while( ii < s ) {
+        PREPARE_ARRAY( ii );
+        if( ii + block_size < s ) {
+            PREPARE_ARRAY( ii + block_size );
         }
-        i += grid_size;
+        ii += grid_size;
     }
     __syncthreads();
 
@@ -437,7 +437,7 @@ template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 6>( Vortex 
 template <size_t block_size, size_t level>
 __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s, node_t *output ) {
     unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int ii = blockIdx.x * ( block_size * 2 ) + tid;
     unsigned int grid_size = block_size * 2 * gridDim.x;
     const unsigned int size = 6 << level;
 
@@ -454,20 +454,30 @@ __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s,
         arr[size * tid + 6 * i + 5] = 0;
     }
 
-    while( i < s ) {
+    float g_above_1 = 0, xg_above_1 = 0, yg_above_1 = 0;
+    float g_below_1 = 0, xg_below_1 = 0, yg_below_1 = 0;
+    float g_above_2 = 0, xg_above_2 = 0, yg_above_2 = 0;
+    float g_below_2 = 0, xg_below_2 = 0, yg_below_2 = 0;
+
+    while( ii < s ) {
         for( unsigned int j = 0; j < branch_count; ++j ) {
-            float g_above_1 = input[i * branch_count + j].g_above;
-            float xg_above_1 = input[i * branch_count + j].xg_above;
-            float yg_above_1 = input[i * branch_count + j].yg_above;
-            float g_below_1 = input[i * branch_count + j].g_below;
-            float xg_below_1 = input[i * branch_count + j].xg_below;
-            float yg_below_1 = input[i * branch_count + j].yg_below;
-            float g_above_2 = input[(i + block_size) * branch_count + j].g_above;
-            float xg_above_2 = input[(i + block_size) * branch_count + j].xg_above;
-            float yg_above_2 = input[(i + block_size) * branch_count + j].yg_above;
-            float g_below_2 = input[(i + block_size) * branch_count + j].g_below;
-            float xg_below_2 = input[(i + block_size) * branch_count + j].xg_below;
-            float yg_below_2 = input[(i + block_size) * branch_count + j].yg_below;
+            g_above_1 = input[ii * branch_count + j].g_above;
+            xg_above_1 = input[ii * branch_count + j].xg_above;
+            yg_above_1 = input[ii * branch_count + j].yg_above;
+            g_below_1 = input[ii * branch_count + j].g_below;
+            xg_below_1 = input[ii * branch_count + j].xg_below;
+            yg_below_1 = input[ii * branch_count + j].yg_below;
+            if( ii + block_size < s ) {
+                g_above_2 = input[(ii + block_size) * branch_count + j].g_above;
+                xg_above_2 = input[(ii + block_size) * branch_count + j].xg_above;
+                yg_above_2 = input[(ii + block_size) * branch_count + j].yg_above;
+                g_below_2 = input[(ii + block_size) * branch_count + j].g_below;
+                xg_below_2 = input[(ii + block_size) * branch_count + j].xg_below;
+                yg_below_2 = input[(ii + block_size) * branch_count + j].yg_below;
+            } else {
+                g_above_2 = 0; xg_above_2 = 0; yg_above_2 = 0;
+                g_below_2 = 0; xg_below_2 = 0; yg_below_2 = 0;
+            }
             // g_above
             arr[size * tid + 6 * j + 0] += g_above_1 + g_above_2;
             // xg_above
@@ -481,7 +491,7 @@ __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s,
             // yg_above
             arr[size * tid + 6 * j + 5] += yg_below_1 + yg_below_2;
         }
-        i += grid_size;
+        ii += grid_size;
     }
     __syncthreads();
 
