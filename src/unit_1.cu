@@ -858,7 +858,7 @@ static void output_tree( tree_t *t, size_t depth, int current_step ) {
     char filename[64];
     snprintf(filename, sizeof(filename), "tree_%d.txt", current_step);
     FILE *f = fopen(filename, "w");
-    for( size_t j = 0; j < depth - 1; ++j ) {
+    for( size_t j = 0; j < depth; ++j ) {
         unsigned count_on_level = 1 << j;
         fprintf( f, "\nlevel = %zu\n", j );
         for( size_t jj = 0; jj < count_on_level; ++jj ) {
