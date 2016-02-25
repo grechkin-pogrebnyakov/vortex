@@ -270,29 +270,29 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
         SET_DEFAULT_ARR_VAL(size * tid + 4 * i);
     }
 
+    float x_min_1 = 0, x_max_1 = 0, y_min_1 = 0, y_max_1 = 0;
+
+#define CALCULATE_ARRAY( _index_ ) \
+        for( unsigned int j = 0; j < branch_count; ++j ) { \
+            x_min_1 = input[(_index_) * branch_count + j].x_min; \
+            x_max_1 = input[(_index_) * branch_count + j].x_max; \
+            y_min_1 = input[(_index_) * branch_count + j].y_min; \
+            y_max_1 = input[(_index_) * branch_count + j].y_max; \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * j + 0], x_min_1, fminf ); \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * j + 1], x_max_1, fmaxf ); \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * j + 2], y_min_1, fminf ); \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * j + 3], y_max_1, fmaxf ); \
+        }
+
     while( ii < s ) {
-        for( unsigned int j = 0; j < branch_count; ++j ) {
-            float x_min_1 = input[ii * branch_count + j].x_min;
-            float x_max_1 = input[ii * branch_count + j].x_max;
-            float y_min_1 = input[ii * branch_count + j].y_min;
-            float y_max_1 = input[ii * branch_count + j].y_max;
-            assert((ii + block_size) < s);
-            float x_min_2 = input[(ii + block_size) * branch_count + j].x_min;
-            float x_max_2 = input[(ii + block_size) * branch_count + j].x_max;
-            float y_min_2 = input[(ii + block_size) * branch_count + j].y_min;
-            float y_max_2 = input[(ii + block_size) * branch_count + j].y_max;
-            // x_min
-            arr[size * tid + 4 * j + 0] = fminf( arr[size * tid + 4 * j + 0], fminf( x_min_1, x_min_2 ) );
-            // x_max
-            arr[size * tid + 4 * j + 1] = fmaxf( arr[size * tid + 4 * j + 1], fmaxf( x_max_1, x_max_2 ) );
-            // y_min
-            arr[size * tid + 4 * j + 2] = fminf( arr[size + tid + 4 * j + 2], fminf( y_min_1, y_min_2 ) );
-            // y_max
-            arr[size * tid + 4 * j + 3] = fmaxf( arr[size + tid + 4 * j + 3], fmaxf( y_max_1, y_max_2 ) );
+        CALCULATE_ARRAY( ii );
+        if( ii + block_size < s ) {
+            CALCULATE_ARRAY( ii + block_size );
         }
         ii += grid_size;
     }
     __syncthreads();
+#undef CALCULATE_ARRAY
 
     TREE_REDUCE_REDUCE_STEP( 256 );
     TREE_REDUCE_REDUCE_STEP( 128 );
