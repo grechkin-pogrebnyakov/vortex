@@ -529,8 +529,8 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
     const unsigned int tid = threadIdx.x;
     const unsigned int i = blockIdx.x * block_size + tid;
 
-    for( int j = 0; j < level - 1; ++j )
-        tree += (1 << j);
+    if( i == 0 )
+        tree -= (1 << (level-2));
 
     for( int j = level - 1; j >= 0; --j ) {
         unsigned count_on_level = 1 << j;
