@@ -529,9 +529,6 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
     const unsigned int tid = threadIdx.x;
     const unsigned int i = blockIdx.x * block_size + tid;
 
-    if( i == 0 )
-        tree -= (1 << (level-2));
-
     for( int j = level - 1; j >= 0; --j ) {
         unsigned count_on_level = 1 << j;
         for( unsigned jj = 0; jj < count_on_level; jj += block_size ) {
@@ -545,7 +542,7 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
                 tree[k].yg_below = tree[2 * k + count_on_level].yg_below + tree[2 * k + count_on_level + 1].yg_below;
             }
         }
-        tree -= (1 << (j - 1));
+        __syncthreads();
     }
 
 }
