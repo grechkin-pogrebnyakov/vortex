@@ -647,6 +647,82 @@ static void save_d(TVars *d, size_t size, int _step) {
     fclose( outfile );
 } //save_to_file
 
+#define BUILD_TREE_STEP_IMPL( _level_ ) ({ \
+    first_tree_reduce_Kernel<BLOCK_SIZE, _level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 ); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        return 1; \
+    } \
+    tree_pointer += 1 << (_level_ - 1); \
+    second_tree_reduce_Kernel<BLOCK_SIZE, _level_> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer ); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        return 1; \
+    } \
+})
+
+#define BUILD_TREE_STEP( __level__ ) \
+    switch(( __level__ )) { \
+        case 1: \
+            BUILD_TREE_STEP_IMPL( 1 ); \
+            break; \
+        case 2: \
+            BUILD_TREE_STEP_IMPL( 2 ); \
+            break; \
+        case 3: \
+            BUILD_TREE_STEP_IMPL( 3 ); \
+            break; \
+        case 4: \
+            BUILD_TREE_STEP_IMPL( 4 ); \
+            break; \
+        case 5: \
+            BUILD_TREE_STEP_IMPL( 5 ); \
+            break; \
+        case 6: \
+            BUILD_TREE_STEP_IMPL( 6 ); \
+            break; \
+    } \
+
+#define FIND_NODES_PARAMS_IMPL( _last_level_ ) ({\
+    first_find_leaves_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 ); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        return 1; \
+    } \
+    second_find_leaves_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, tree_pointer ); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        return 1; \
+    } \
+    find_tree_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer ); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        return 1; \
+    } \
+})
+
+#define FIND_NODES_PARAMS( _depth_ ) \
+    switch(( _depth_ )) { \
+        case 2: \
+            FIND_NODES_PARAMS_IMPL( 1 ); \
+            break; \
+        case 3: \
+            FIND_NODES_PARAMS_IMPL( 2 ); \
+            break; \
+        case 4: \
+            FIND_NODES_PARAMS_IMPL( 3 ); \
+            break; \
+        case 5: \
+            FIND_NODES_PARAMS_IMPL( 4 ); \
+            break; \
+        case 6: \
+            FIND_NODES_PARAMS_IMPL( 5 ); \
+            break; \
+        case 7: \
+            FIND_NODES_PARAMS_IMPL( 6 ); \
+            break; \
+    }
+
 static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     unsigned int second_reduce_size = 2 * BLOCK_SIZE;
     static node_t *tmp_tree = NULL;
@@ -668,6 +744,10 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     if( !tmp_tree_2 )
         cuda_safe( cudaMalloc( (void**)&tmp_tree_2, second_reduce_size * sizeof( node_t ) * (2 << conf.tree_depth) ) );
 
+    for( size_t i = 1; i < conf.tree_depth; ++i ) {
+        BUILD_TREE_STEP( i );
+    }
+/*
     if( conf.tree_depth > 1 ) {
         first_tree_reduce_Kernel<BLOCK_SIZE, 1> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2 );
         cudaDeviceSynchronize();
@@ -746,7 +826,9 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
             return 1;
         }//if
     }
-
+*/
+    FIND_NODES_PARAMS( conf.tree_depth );
+/*
     if( 7 == conf.tree_depth ) {
         first_find_leaves_params_Kernel<BLOCK_SIZE, 6> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 );
         cudaDeviceSynchronize();
@@ -849,7 +931,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
             return 1;
         }//if
     }
-
+*/
     log_d("finish tree_building");
     return 0;
 }
