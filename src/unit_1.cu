@@ -694,7 +694,7 @@ static void save_d(TVars *d, size_t size, int _step) {
     if( cuda_safe( cudaGetLastError() ) ) { \
         return 1; \
     } \
-    find_tree_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree ); \
+    find_tree_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer ); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
         return 1; \

@@ -312,6 +312,12 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
             output[blockIdx.x * branch_count + i].x_max = xx_max;
             output[blockIdx.x * branch_count + i].y_min = yy_min;
             output[blockIdx.x * branch_count + i].y_max = yy_max;
+            output[blockIdx.x * branch_count + i].g_above = 0;
+            output[blockIdx.x * branch_count + i].g_below = 0;
+            output[blockIdx.x * branch_count + i].xg_above = 0;
+            output[blockIdx.x * branch_count + i].xg_below = 0;
+            output[blockIdx.x * branch_count + i].yg_above = 0;
+            output[blockIdx.x * branch_count + i].yg_below = 0;
             if( xx_max - xx_min > yy_max - yy_min ) {
                 output[blockIdx.x * branch_count + i].med = (xx_max + xx_min) / 2.0;
                 output[blockIdx.x * branch_count + i].axe = 0;
@@ -529,8 +535,10 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
     const unsigned int tid = threadIdx.x;
     const unsigned int i = blockIdx.x * block_size + tid;
 
+
     for( int j = level - 1; j >= 0; --j ) {
         unsigned count_on_level = 1 << j;
+        tree -= count_on_level;
         for( unsigned jj = 0; jj < count_on_level; jj += block_size ) {
             unsigned k = jj + i;
             if( k < count_on_level ) {
