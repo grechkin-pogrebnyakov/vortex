@@ -575,7 +575,7 @@ __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size
     float y0 = 0.0f, y1 = 0.0f;
 //	TVars dist2;
     float mnog = 0.0f;
-    // координаты и нормали расчётной точки
+    // РєРѕРѕСЂРґРёРЅР°С‚С‹ Рё РЅРѕСЂРјР°Р»Рё СЂР°СЃС‡С‘С‚РЅРѕР№ С‚РѕС‡РєРё
     float a_left0 = 0.0f, a_left1 = 0.0f;
     float a_right0 = 0.0f, a_right1 = 0.0f;
     float d0 = 0.0f, d1 = 0.0f;
@@ -586,10 +586,10 @@ __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size
     float z = 0.0f;
     float alpha = 0.0f, beta = 0.0f;
 
-    // координаты воздействующей точки
+    // РєРѕРѕСЂРґРёРЅР°С‚С‹ РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РµР№ С‚РѕС‡РєРё
     __shared__ float b_sh_0 [BLOCK_SIZE];
     __shared__ float b_sh_1 [BLOCK_SIZE];
-    // интенсивность воздействующей точки
+    // РёРЅС‚РµРЅСЃРёРІРЅРѕСЃС‚СЊ РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РµР№ С‚РѕС‡РєРё
     __shared__ float g [BLOCK_SIZE];
 
     a_left0 = (float)panels[i].left[0];
@@ -670,18 +670,18 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     float y0 = 0.0f, y1 = 0.0f;
 //	TVars dist2;
     float mnog = 0.0f;
-    float d_1 = 0.0f;      //  четыре наименьших
-    float d_2 = 0.0f;      //  расстояния от этой
-    float d_3 = 0.0f;      //  точки до остальных.
+    float d_1 = 0.0f;      //  С‡РµС‚С‹СЂРµ РЅР°РёРјРµРЅСЊС€РёС…
+    float d_2 = 0.0f;      //  СЂР°СЃСЃС‚РѕСЏРЅРёСЏ РѕС‚ СЌС‚РѕР№
+    float d_3 = 0.0f;      //  С‚РѕС‡РєРё РґРѕ РѕСЃС‚Р°Р»СЊРЅС‹С….
     float d_0 = 0.0f;
     float dist2 = 0.0f;
     float dst = 0.0f;
-    // координаты расчётной точки
+    // РєРѕРѕСЂРґРёРЅР°С‚С‹ СЂР°СЃС‡С‘С‚РЅРѕР№ С‚РѕС‡РєРё
     float a0 = 0.0f, a1 = 0.0f;
-    // координаты воздействующей точки
+    // РєРѕРѕСЂРґРёРЅР°С‚С‹ РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РµР№ С‚РѕС‡РєРё
     __shared__ float b_sh_0 [BLOCK_SIZE];
     __shared__ float b_sh_1 [BLOCK_SIZE];
-    // интенсивность воздействующей точки
+    // РёРЅС‚РµРЅСЃРёРІРЅРѕСЃС‚СЊ РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РµР№ С‚РѕС‡РєРё
     __shared__ float g [BLOCK_SIZE];
     a0 = (float)pos[i].r[0];
     a1 = (float)pos[i].r[1];
@@ -734,16 +734,16 @@ __global__ void diffusion_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars
     float nu = (float) nu_d;
     float II_2_0 = 0.0f, II_2_1 = 0.0f;
     float e = 0.0f;
-    // знаменатель
+    // Р·РЅР°РјРµРЅР°С‚РµР»СЊ
     float II_1 = 0.0f;
     float dist = 0.0;
     float mnog = 0.0;
-    // координаты расчётной точки
+    // РєРѕРѕСЂРґРёРЅР°С‚С‹ СЂР°СЃС‡С‘С‚РЅРѕР№ С‚РѕС‡РєРё
     float a0 = 0.0, a1 = 0.0;
-    // координаты воздействующих точек
+    // РєРѕРѕСЂРґРёРЅР°С‚С‹ РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РёС… С‚РѕС‡РµРє
     __shared__ float b_sh_0[BLOCK_SIZE];
     __shared__ float b_sh_1[BLOCK_SIZE];
-    // интенсивности воздействующих точек
+    // РёРЅС‚РµРЅСЃРёРІРЅРѕСЃС‚Рё РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РёС… С‚РѕС‡РµРє
     __shared__ TVars g[BLOCK_SIZE];
     float dd = 0.0;
     a0 = (float)pos[i].r[0];
@@ -786,7 +786,7 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
     float dL = 0.0f;
     float RES_0 = 0.0f;
     float RES_3_0 = 0.0f, RES_3_1 = 0.0f;
-    // координаты расчётной точки
+    // РєРѕРѕСЂРґРёРЅР°С‚С‹ СЂР°СЃС‡С‘С‚РЅРѕР№ С‚РѕС‡РєРё
     float a0 = 0.0f, a1 = 0.0f;
     float dd = 0.0f;
 //    F_vis[i].v[0] = 0.0;
@@ -796,7 +796,7 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
     dd = (float)d[i];
     float II_0 = 2 * M_PI * dd * dd;
     float II_3_0 = 0.0f, II_3_1 = 0.0f;
-    //	TVars denomenator = 2 * M_PI * dd; // знаменатель
+    //	TVars denomenator = 2 * M_PI * dd; // Р·РЅР°РјРµРЅР°С‚РµР»СЊ
     for (int f = 0; f < quant; ++f) {
 
         Ra_0 = R_left_xf(panels, f);
@@ -1079,46 +1079,46 @@ inline __device__ void I_0_I_3f(float Ra_0, float Ra_1, float Rb_0, float Rb_1, 
 
 
 //------------------------------------------------------
-//-----------------Контроль протыкания------------------
-// Вход:  Panel    - контролируемый профиль
-//        a[]    - конечное положение
-//        b[]    - начальное положение
-// Выход: return - признак протыкания
-//		  hitpan - номер панели, которая пересекается
+//-----------------РљРѕРЅС‚СЂРѕР»СЊ РїСЂРѕС‚С‹РєР°РЅРёСЏ------------------
+// Р’С…РѕРґ:  Panel    - РєРѕРЅС‚СЂРѕР»РёСЂСѓРµРјС‹Р№ РїСЂРѕС„РёР»СЊ
+//        a[]    - РєРѕРЅРµС‡РЅРѕРµ РїРѕР»РѕР¶РµРЅРёРµ
+//        b[]    - РЅР°С‡Р°Р»СЊРЅРѕРµ РїРѕР»РѕР¶РµРЅРёРµ
+// Р’С‹С…РѕРґ: return - РїСЂРёР·РЅР°Рє РїСЂРѕС‚С‹РєР°РЅРёСЏ
+//		  hitpan - РЅРѕРјРµСЂ РїР°РЅРµР»Рё, РєРѕС‚РѕСЂР°СЏ РїРµСЂРµСЃРµРєР°РµС‚СЃСЏ
 //------------------------------------------------------
 __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int* hitpan) {
 	const TVars porog_r=1e-12;
 	
-	TVars x1=a0;//конечное положение
+	TVars x1=a0;//РєРѕРЅРµС‡РЅРѕРµ РїРѕР»РѕР¶РµРЅРёРµ
 	TVars y1=a1;
-	TVars x2=b[0];//начальное положение
+	TVars x2=b[0];//РЅР°С‡Р°Р»СЊРЅРѕРµ РїРѕР»РѕР¶РµРЅРёРµ
 	TVars y2=b[1];
-	TVars minDist=25.0; //расстояние до пробиваемой панели
-	int minN=-1;          //номер пробиваемой панели
+	TVars minDist=25.0; //СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ РїСЂРѕР±РёРІР°РµРјРѕР№ РїР°РЅРµР»Рё
+	int minN=-1;          //РЅРѕРјРµСЂ РїСЂРѕР±РёРІР°РµРјРѕР№ РїР°РЅРµР»Рё
   
-	bool hit=true; //по умолчанию устанавливаем пробивание
+	bool hit=true; //РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј РїСЂРѕР±РёРІР°РЅРёРµ
     
-	//if ( ((x1<Profile[prf].low_left[0]) && (x2<Profile[prf].low_left[0])) ||   <-- Было
+	//if ( ((x1<Profile[prf].low_left[0]) && (x2<Profile[prf].low_left[0])) ||   <-- Р‘С‹Р»Рѕ
 	//     ((x1>Profile[prf].up_right[0]) && (x2>Profile[prf].up_right[0])) ||
 	//     ((y1<Profile[prf].low_left[1]) && (y2<Profile[prf].low_left[1])) ||
 	//     ((y1>Profile[prf].up_right[1]) && (y2>Profile[prf].up_right[1])) ) hit=false;
 
-	//если вихрь вне габ. прямоугольника - возвращаем false
+	//РµСЃР»Рё РІРёС…СЂСЊ РІРЅРµ РіР°Р±. РїСЂСЏРјРѕСѓРіРѕР»СЊРЅРёРєР° - РІРѕР·РІСЂР°С‰Р°РµРј false
 	hit = !( ((x1<-0.5) && (x2<-0.5)) ||   
 			 ((x1>0.5) && (x2>0.5)) ||
 			 ((y1<-0.01) && (y2<-0.01)) ||
 			 ((y1>0.01) && (y2>0.01))   );
   
-	//если внутри габ. прямоугольника - проводим контроль
+	//РµСЃР»Рё РІРЅСѓС‚СЂРё РіР°Р±. РїСЂСЏРјРѕСѓРіРѕР»СЊРЅРёРєР° - РїСЂРѕРІРѕРґРёРј РєРѕРЅС‚СЂРѕР»СЊ
 	if (hit)
 	{
 		hit=false;
-        //Определение прямой: Ax+By+D=0 - перемещение вихря
+        //РћРїСЂРµРґРµР»РµРЅРёРµ РїСЂСЏРјРѕР№: Ax+By+D=0 - РїРµСЂРµРјРµС‰РµРЅРёРµ РІРёС…СЂСЏ
         TVars A=y2-y1;
         TVars B=x1-x2;
         TVars D=y1*x2-x1*y2;
         TVars A1, B1, D1;
-        //Проверка на пересечение
+        //РџСЂРѕРІРµСЂРєР° РЅР° РїРµСЂРµСЃРµС‡РµРЅРёРµ
         TVars r0=0, r1=0, r2=0, r3=0;
         bool hitt=false;
         for(int i=0; i<quant; ++i)
@@ -1133,7 +1133,7 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 				hitt=true;
             if (hitt)
             {
-				A1=Panel[i].right[1]-Panel[i].left[1]; //Определение прямой:A1x+B1y+D1=0 -панель
+				A1=Panel[i].right[1]-Panel[i].left[1]; //РћРїСЂРµРґРµР»РµРЅРёРµ РїСЂСЏРјРѕР№:A1x+B1y+D1=0 -РїР°РЅРµР»СЊ
                 B1=Panel[i].left[0]-Panel[i].right[0];
                 D1=Panel[i].left[1]*Panel[i].right[0]-Panel[i].left[0]*Panel[i].right[1];
 				r2=A1*x1+B1*y1+D1;
@@ -1143,7 +1143,7 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 				
 				if (r2*r3<=0)
 				{
-					hit=true;// пробила!
+					hit=true;// РїСЂРѕР±РёР»Р°!
                     TVars d2=(x2-(B*D1-D*B1)/(A*B1-B*A1))*(x2-(B*D1-D*B1)/(A*B1-B*A1))+(y2-(A1*D-D1*A)/(A*B1-B*A1))*(y2-(A1*D-D1*A)/(A*B1-B*A1)); 
 					if (d2<minDist) 
 					{
@@ -1168,12 +1168,12 @@ if ( i < 500 ) {
 //        TVars dist2;
         float mnog = 0.0f;
         float dist2 = 0.0f;
-// координаты расчётной точки
+// РєРѕРѕСЂРґРёРЅР°С‚С‹ СЂР°СЃС‡С‘С‚РЅРѕР№ С‚РѕС‡РєРё
         float a0 = 0.0f, a1 = 0.0f;
-// координаты воздействующей точки
+// РєРѕРѕСЂРґРёРЅР°С‚С‹ РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РµР№ С‚РѕС‡РєРё
         __shared__ float b_sh_0 [BLOCK_SIZE];
         __shared__ float b_sh_1 [BLOCK_SIZE];
-// интенсивность воздействующей точки
+// РёРЅС‚РµРЅСЃРёРІРЅРѕСЃС‚СЊ РІРѕР·РґРµР№СЃС‚РІСѓСЋС‰РµР№ С‚РѕС‡РєРё
         __shared__ float g [BLOCK_SIZE];
         a0 = (float)Contr_points[i].v[0];
         a1 = (float)Contr_points[i].v[1];
