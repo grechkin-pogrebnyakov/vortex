@@ -197,12 +197,12 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
     float medians[ branch_count ];
     uint8_t axe[ branch_count ];
 
-    for( unsigned int j = 0; j < branch_count; ++j ) {
+    for( unsigned int j = 0; j < branch_count/2; ++j ) {
         medians[j] = tree[j].med;
         axe[j] = tree[j].axe;
         SET_DEFAULT_ARR_VAL(size * tid + 4 * j);
     }
-    
+
     float x = 0, y = 0;
     unsigned tree_id = 0;
 
