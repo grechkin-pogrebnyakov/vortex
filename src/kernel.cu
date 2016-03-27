@@ -194,14 +194,14 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
 
     const unsigned int branch_count = 1 << level;
 
-    float medians[ branch_count/2 ];
-    uint8_t axe[ branch_count/2 ];
+    float medians[ branch_count ];
+    uint8_t axe[ branch_count ];
 
-    for( unsigned int j = 0; j < branch_count/2; ++j ) {
+    for( unsigned int j = 0; j < branch_count; ++j ) {
         medians[j] = tree[j].med;
         axe[j] = tree[j].axe;
         SET_DEFAULT_ARR_VAL(size * tid + 4 * j);
-        SET_DEFAULT_ARR_VAL(size * tid + 4 * j + branch_count/2);
+//        SET_DEFAULT_ARR_VAL(size * tid + 4 * 2 * j + 1);
     }
 
     float x = 0, y = 0;
@@ -211,6 +211,7 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         x = (float)pos[_index_].r[0]; \
         y = (float)pos[_index_].r[1]; \
         tree_id = pos[_index_].tree_id; \
+	assert( tree_id < branch_count ); \
         tree_id = pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id; \
         LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 0], x, fminf ); \
         LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 1], x, fmaxf ); \
