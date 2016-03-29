@@ -21,7 +21,7 @@ __global__ void second_find_range_Kernel( node_t *input, unsigned int s, node_t 
 
 // CUDA ЯДРА поиск размеров ячеек и определение принадлежности ВЭ ячейкам нижнего уровня
 template <size_t block_size, size_t level>
-__global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output );
+__global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output, unsigned start_undex );
 template <size_t block_size, size_t level>
 __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t *output );
 
