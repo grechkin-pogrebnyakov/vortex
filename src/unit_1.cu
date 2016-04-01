@@ -647,6 +647,9 @@ static void save_d(TVars *d, size_t size, int _step) {
     fclose( outfile );
 } //save_to_file
 
+#define BUILD_LEVEL (1)
+#define BUILD_COUNT (1 << (BUILD_LEVEL-1))
+
 #define BUILD_TREE_STEP_IMPL( _level_, _start_index_) ({ \
     first_tree_reduce_Kernel<BLOCK_SIZE, _level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2, _start_index_ ); \
     log_e("first_tree_reduce_Kernel %p lev = %u start_index = %u", tree_pointer, _level_, _start_index_); \
@@ -664,25 +667,51 @@ static void save_d(TVars *d, size_t size, int _step) {
     } \
 })
 
-#define BUILD_TREE_STEP_SIMPLE( __level__, __start_index__ ) \
+#define BUILD_TREE_STEP( _lev_ ) ({ \
+    log_e("tree build: level = %u", _lev_); \
+    size_t __prev_level_count =  1 << (_lev_ - 1); \
+    node_t *_next_level_tree_ = tree_pointer + __prev_level_count; \
+    calculate_tree_index_Kernel<BLOCK_SIZE, _lev_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos,  s, tree_pointer ); \
+    log_e("calculate_tree_index_Kernel %p lev = %u", tree_pointer, _lev_); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        log_e("calculate_tree_index_Kernel %u",_lev_); \
+        return 1; \
+    } \
+    if( _lev_ <= BUILD_LEVEL ) { \
+        BUILD_TREE_STEP_IMPL( _lev_, 0 ); \
+        tree_pointer = _next_level_tree_; \
+    } else { \
+        node_t *orig_ptr = tree_pointer; \
+        for( size_t iii = 0; iii < __prev_level_count; iii += BUILD_COUNT ) { \
+            BUILD_TREE_STEP_IMPL( BUILD_LEVEL, tree_pointer - orig_ptr ); \
+            log_e("new tree build: level = %u, step %u ok", _lev_, iii); \
+            tree_pointer += BUILD_COUNT; \
+            _next_level_tree_ += BUILD_COUNT * 2; \
+        } \
+        tree_pointer = _next_level_tree_; \
+    } \
+})
+
+#define BUILD_TREE_STEP_SIMPLE( __level__ ) \
     switch(( __level__ )) { \
         case 1: \
-            BUILD_TREE_STEP_IMPL( 1, __start_index__ ); \
+            BUILD_TREE_STEP( 1 ); \
             break; \
         case 2: \
-            BUILD_TREE_STEP_IMPL( 2, __start_index__ ); \
+            BUILD_TREE_STEP( 2 ); \
             break; \
         case 3: \
-            BUILD_TREE_STEP_IMPL( 3, __start_index__ ); \
+            BUILD_TREE_STEP( 3 ); \
             break; \
         case 4: \
-            BUILD_TREE_STEP_IMPL( 4, __start_index__ ); \
+            BUILD_TREE_STEP( 4 ); \
             break; \
         case 5: \
-            BUILD_TREE_STEP_IMPL( 5, __start_index__ ); \
+            BUILD_TREE_STEP( 5 ); \
             break; \
         case 6: \
-            BUILD_TREE_STEP_IMPL( 6, __start_index__ ); \
+            BUILD_TREE_STEP( 6 ); \
             break; \
     } \
 
@@ -703,9 +732,6 @@ static void save_d(TVars *d, size_t size, int _step) {
         return 1; \
     } \
 })
-
-#define BUILD_LEVEL (2)
-#define BUILD_COUNT (1 << BUILD_LEVEL)
 
 #define FIND_NODES_PARAMS( _depth_ ) \
     switch(( _depth_ )) { \
@@ -729,10 +755,18 @@ static void save_d(TVars *d, size_t size, int _step) {
             break; \
     }
 
+/*
 #define BUILD_TREE_STEP( _lev_ ) ({ \
     log_e("tree build: level = %u", _lev_); \
     size_t __prev_level_count =  1 << (_lev_ - 1); \
     node_t *_next_level_tree_ = tree_pointer + __prev_level_count; \
+    calculate_tree_index_Kernel<BLOCK_SIZE, _level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos,  s, tree_pointer ); \
+    log_e("calculate_tree_index_Kernel %p lev = %u start_index = %u", tree_pointer, _level_, _start_index_); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        log_e("calculate_tree_index_Kernel %u",_level_); \
+        return 1; \
+    } \
     if( _lev_ <= BUILD_LEVEL ) { \
         BUILD_TREE_STEP_SIMPLE( _lev_, 0 ) \
         tree_pointer = _next_level_tree_; \
@@ -747,6 +781,7 @@ static void save_d(TVars *d, size_t size, int _step) {
         tree_pointer = _next_level_tree_; \
     } \
 })
+*/
 
 static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     unsigned int second_reduce_size = 2 * BLOCK_SIZE;
@@ -770,7 +805,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         cuda_safe( cudaMalloc( (void**)&tmp_tree_2, second_reduce_size * sizeof( node_t ) * (2 << conf.tree_depth) ) );
 
     for( size_t i = 1; i < conf.tree_depth; ++i ) {
-        BUILD_TREE_STEP( i );
+        BUILD_TREE_STEP_SIMPLE( i );
     }
 
 //    FIND_NODES_PARAMS( conf.tree_depth );

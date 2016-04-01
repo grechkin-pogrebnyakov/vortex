@@ -184,6 +184,49 @@ template
 __global__ void second_find_range_Kernel<BLOCK_SIZE>( node_t *input, unsigned int s, node_t *tree );
 
 template <size_t block_size, size_t level>
+__global__ void calculate_tree_index_Kernel( Vortex *pos, unsigned int s, node_t *tree ) {
+    unsigned int tid = threadIdx.x;
+    unsigned int ii = blockIdx.x * ( block_size * 2 ) + tid;
+    unsigned int grid_size = block_size * 2 * gridDim.x;
+
+
+    const unsigned int branch_count = 1 << (level-1);
+
+    float medians[ branch_count ];
+    uint8_t axe[ branch_count ];
+
+    for( unsigned int j = 0; j < branch_count; ++j ) {
+        medians[j] = tree[j].med;
+        axe[j] = tree[j].axe;
+    }
+
+    float x = 0, y = 0;
+    unsigned tree_id = 0;
+
+#define CALCULATE_ARRAY( _index_ ) \
+        x = (float)pos[_index_].r[0]; \
+        y = (float)pos[_index_].r[1]; \
+        tree_id = pos[_index_].tree_id; \
+        pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id; \
+
+    while( ii < s ) {
+        CALCULATE_ARRAY( ii );
+        if( ii + block_size < s ) {
+            CALCULATE_ARRAY( ii + block_size );
+        }
+        ii += grid_size;
+    }
+#undef CALCULATE_ARRAY
+}
+
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 1>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 2>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 3>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 4>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 5>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 6>( Vortex *pos, unsigned int s, node_t *tree );
+
+template <size_t block_size, size_t level>
 __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output, unsigned start_index ) {
     unsigned int tid = threadIdx.x;
     unsigned int ii = blockIdx.x * ( block_size * 2 ) + tid;
@@ -194,34 +237,26 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
 
     const unsigned int branch_count = 1 << level;
 
-    float medians[ branch_count ];
-    uint8_t axe[ branch_count ];
-
     for( unsigned int j = 0; j < branch_count; ++j ) {
-        medians[j] = tree[j].med;
-        axe[j] = tree[j].axe;
         SET_DEFAULT_ARR_VAL(size * tid + 4 * j);
-//        SET_DEFAULT_ARR_VAL(size * tid + 4 * 2 * j + 1);
     }
-
     float x = 0, y = 0;
-    unsigned tree_id = 0;
+    unsigned int tree_id = 0;
 
 #define CALCULATE_ARRAY( _index_ ) \
         x = (float)pos[_index_].r[0]; \
         y = (float)pos[_index_].r[1]; \
         tree_id = pos[_index_].tree_id; \
-        if( tree_id - start_index < branch_count/2 ) { \
-            tree_id = pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id; \
-            tree_id -= start_index * 2; \
-            if( tree_id >= branch_count ) \
-                printf("achtung!!! tree_id=%u\n", tree_id); \
+        tree_id -= start_index; \
+        if( tree_id < 0 ) {\
+            printf("fucking cuda"); \
+        } \
+        else if( tree_id < branch_count ) {\
             LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 0], x, fminf ); \
             LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 1], x, fmaxf ); \
             LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 2], y, fminf ); \
             LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 3], y, fmaxf ); \
         }
-
     while( ii < s ) {
         CALCULATE_ARRAY( ii );
         if( ii + block_size < s ) {
@@ -231,7 +266,6 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
     }
     __syncthreads();
 #undef CALCULATE_ARRAY
-/*
     TREE_REDUCE_REDUCE_STEP( 256 );
     TREE_REDUCE_REDUCE_STEP( 128 );
     TREE_REDUCE_REDUCE_STEP(  64 );
@@ -252,7 +286,6 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
             output[blockIdx.x * branch_count + i].y_max = yy_max;
         }
     }
-*/
 }
 
 template __global__ void first_tree_reduce_Kernel<BLOCK_SIZE, 1>( Vortex *pos, unsigned int s, node_t *tree, node_t *output, unsigned );
