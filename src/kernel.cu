@@ -211,14 +211,16 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         x = (float)pos[_index_].r[0]; \
         y = (float)pos[_index_].r[1]; \
         tree_id = pos[_index_].tree_id; \
-	if( tree_id - start_index < branch_count/2 ) { \
-		tree_id = pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id; \
-		tree_id -= start_index * 2; \
-		LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 0], x, fminf ); \
-		LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 1], x, fmaxf ); \
-		LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 2], y, fminf ); \
-		LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 3], y, fmaxf ); \
-	}
+        if( tree_id - start_index < branch_count/2 ) { \
+            tree_id = pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id; \
+            tree_id -= start_index * 2; \
+            if( tree_id >= branch_count ) \
+                printf("achtung!!! tree_id=%u\n", tree_id); \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 0], x, fminf ); \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 1], x, fmaxf ); \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 2], y, fminf ); \
+            LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 3], y, fmaxf ); \
+        }
 
     while( ii < s ) {
         CALCULATE_ARRAY( ii );

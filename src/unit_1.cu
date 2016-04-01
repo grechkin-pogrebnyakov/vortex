@@ -737,7 +737,7 @@ static void save_d(TVars *d, size_t size, int _step) {
         BUILD_TREE_STEP_SIMPLE( _lev_, 0 ) \
         tree_pointer = _next_level_tree_; \
     } else { \
-	node_t *orig_ptr = tree_pointer; \
+        node_t *orig_ptr = tree_pointer; \
         for( size_t iii = 0; iii < __prev_level_count; iii += BUILD_COUNT ) { \
             BUILD_TREE_STEP_SIMPLE( BUILD_LEVEL, tree_pointer - orig_ptr ); \
             log_e("new tree build: level = %u, step %u ok", _lev_, iii); \

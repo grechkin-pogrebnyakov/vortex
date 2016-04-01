@@ -10,6 +10,9 @@
 
 #include "main.h"
 #include "unita.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 struct conf_t conf;
 int current_step = 0;
@@ -350,6 +353,36 @@ static int parse_params( int argc, char **argv ) {
     return 0;
 }
 
+static int create_dir(const char *dir_name) {
+    struct stat st = {0};
+    if (stat(dir_name, &st) != 0) {
+        if (errno == ENOENT) {
+            if( mkdir(dir_name, 0777) ) {
+                log_e("cannot create %d directory: %s", dir_name, strerror(errno));
+                return -1;
+            }
+            log_i("directory %s created", dir_name);
+        } else {
+            log_e("cannot stat %s directory: %s", dir_name, strerror(errno));
+            return -1;
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        log_e("%s is not directory", dir_name);
+        return -1;
+    }
+    return 0;
+}
+
+static int create_output_dirs() {
+    if (create_dir("output"))
+        return -1;
+    if (create_dir("output/kadrs"))
+        return -1;
+    if (create_dir("output/vels"))
+        return -1;
+    return 0;
+}
+
 int main( int argc, char **argv ) {
     const TVars TVarsZero = 0.0;                    // для обнуления переменных в памяти GPU
     TVars       *M = NULL;                          // "матрица формы" (host)
@@ -381,6 +414,9 @@ int main( int argc, char **argv ) {
         log_e( "tree_depth %zu > 7 unsupported", conf.tree_depth );
         return 1;
     }
+
+    if ( create_output_dirs() )
+        return 1;
 
     set_log_file();
 
