@@ -207,7 +207,7 @@ __global__ void calculate_tree_index_Kernel( Vortex *pos, unsigned int s, node_t
         x = (float)pos[_index_].r[0]; \
         y = (float)pos[_index_].r[1]; \
         tree_id = pos[_index_].tree_id; \
-        pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id; \
+        pos[_index_].tree_id = ( x > medians[tree_id] ) * ( ( axe[tree_id] + 1) % 2 ) + ( y > medians[tree_id] ) *  axe[tree_id] + 2 * tree_id;
 
     while( ii < s ) {
         CALCULATE_ARRAY( ii );
@@ -248,10 +248,7 @@ __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *t
         y = (float)pos[_index_].r[1]; \
         tree_id = pos[_index_].tree_id; \
         tree_id -= start_index; \
-        if( tree_id < 0 ) {\
-            printf("fucking cuda"); \
-        } \
-        else if( tree_id < branch_count ) {\
+        if( tree_id < branch_count ) {\
             LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 0], x, fminf ); \
             LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 1], x, fmaxf ); \
             LEFT_AND_RIGHT_FUNC( arr[size * tid + 4 * tree_id + 2], y, fminf ); \

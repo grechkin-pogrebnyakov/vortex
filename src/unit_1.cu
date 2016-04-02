@@ -658,7 +658,6 @@ static void save_d(TVars *d, size_t size, int _step) {
         log_e("first_tree_reduce_Kernel %u",_level_); \
         return 1; \
     } \
-    /*tree_pointer += 1 << (_level_ - 1);*/ \
     second_tree_reduce_Kernel<BLOCK_SIZE, _level_> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tmp_tree_2, second_reduce_size, _next_level_tree_ ); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
@@ -682,14 +681,13 @@ static void save_d(TVars *d, size_t size, int _step) {
         BUILD_TREE_STEP_IMPL( _lev_, 0 ); \
         tree_pointer = _next_level_tree_; \
     } else { \
-        node_t *orig_ptr = tree_pointer; \
+        node_t *orig_ptr = _next_level_tree_; \
         for( size_t iii = 0; iii < __prev_level_count; iii += BUILD_COUNT ) { \
-            BUILD_TREE_STEP_IMPL( BUILD_LEVEL, tree_pointer - orig_ptr ); \
+            BUILD_TREE_STEP_IMPL( BUILD_LEVEL, _next_level_tree_ - orig_ptr ); \
             log_e("new tree build: level = %u, step %u ok", _lev_, iii); \
             tree_pointer += BUILD_COUNT; \
             _next_level_tree_ += BUILD_COUNT * 2; \
         } \
-        tree_pointer = _next_level_tree_; \
     } \
 })
 
@@ -755,34 +753,6 @@ static void save_d(TVars *d, size_t size, int _step) {
             break; \
     }
 
-/*
-#define BUILD_TREE_STEP( _lev_ ) ({ \
-    log_e("tree build: level = %u", _lev_); \
-    size_t __prev_level_count =  1 << (_lev_ - 1); \
-    node_t *_next_level_tree_ = tree_pointer + __prev_level_count; \
-    calculate_tree_index_Kernel<BLOCK_SIZE, _level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos,  s, tree_pointer ); \
-    log_e("calculate_tree_index_Kernel %p lev = %u start_index = %u", tree_pointer, _level_, _start_index_); \
-    cudaDeviceSynchronize(); \
-    if( cuda_safe( cudaGetLastError() ) ) { \
-        log_e("calculate_tree_index_Kernel %u",_level_); \
-        return 1; \
-    } \
-    if( _lev_ <= BUILD_LEVEL ) { \
-        BUILD_TREE_STEP_SIMPLE( _lev_, 0 ) \
-        tree_pointer = _next_level_tree_; \
-    } else { \
-        node_t *orig_ptr = tree_pointer; \
-        for( size_t iii = 0; iii < __prev_level_count; iii += BUILD_COUNT ) { \
-            BUILD_TREE_STEP_SIMPLE( BUILD_LEVEL, tree_pointer - orig_ptr ); \
-            log_e("new tree build: level = %u, step %u ok", _lev_, iii); \
-            tree_pointer += BUILD_COUNT; \
-            _next_level_tree_ += BUILD_COUNT * 2; \
-        } \
-        tree_pointer = _next_level_tree_; \
-    } \
-})
-*/
-
 static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     unsigned int second_reduce_size = 2 * BLOCK_SIZE;
     static node_t *tmp_tree = NULL;
@@ -808,7 +778,7 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
         BUILD_TREE_STEP_SIMPLE( i );
     }
 
-//    FIND_NODES_PARAMS( conf.tree_depth );
+    FIND_NODES_PARAMS( conf.tree_depth );
 
     log_d("finish tree_building");
     return 0;
