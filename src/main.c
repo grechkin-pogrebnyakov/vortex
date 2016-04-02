@@ -410,10 +410,6 @@ int main( int argc, char **argv ) {
     if ( read_config( conf.config_file ) )
         return 1;
     log_d("ok read config");
-    if( conf.tree_depth > 7 ) {
-        log_e( "tree_depth %zu > 7 unsupported", conf.tree_depth );
-        return 1;
-    }
 
     if ( create_output_dirs() )
         return 1;

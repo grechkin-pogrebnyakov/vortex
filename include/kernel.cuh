@@ -29,13 +29,13 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
 
 // CUDA ЯДРА определение параметров листьев нижнего уровня
 template <size_t block_size, size_t level>
-__global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output );
+__global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output, unsigned );
 template <size_t block_size, size_t level>
 __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s, node_t *output );
 
 // CUDA ЯДРО определение параметров всего дерева
-template <size_t block_size, size_t level>
-__global__ void find_tree_params_Kernel( node_t *tree );
+template <size_t block_size>
+__global__ void find_tree_params_Kernel( node_t *treei, unsigned );
 
 // CUDA ЯДРО обнуление ВЭ, начиная с элемента s, при этом у них случайные координаты
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);

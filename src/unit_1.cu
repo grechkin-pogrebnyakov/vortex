@@ -647,7 +647,7 @@ static void save_d(TVars *d, size_t size, int _step) {
     fclose( outfile );
 } //save_to_file
 
-#define BUILD_LEVEL (1)
+#define BUILD_LEVEL (3)
 #define BUILD_COUNT (1 << (BUILD_LEVEL-1))
 
 #define BUILD_TREE_STEP_IMPL( _level_, _start_index_) ({ \
@@ -691,30 +691,46 @@ static void save_d(TVars *d, size_t size, int _step) {
     } \
 })
 
+#define BUILD_TREE_STEP_CASE( _i_ ) \
+    case _i_: \
+        BUILD_TREE_STEP( _i_ ); \
+        break;
+
 #define BUILD_TREE_STEP_SIMPLE( __level__ ) \
     switch(( __level__ )) { \
-        case 1: \
-            BUILD_TREE_STEP( 1 ); \
-            break; \
-        case 2: \
-            BUILD_TREE_STEP( 2 ); \
-            break; \
-        case 3: \
-            BUILD_TREE_STEP( 3 ); \
-            break; \
-        case 4: \
-            BUILD_TREE_STEP( 4 ); \
-            break; \
-        case 5: \
-            BUILD_TREE_STEP( 5 ); \
-            break; \
-        case 6: \
-            BUILD_TREE_STEP( 6 ); \
-            break; \
+        BUILD_TREE_STEP_CASE( 1 )\
+        BUILD_TREE_STEP_CASE( 2 )\
+        BUILD_TREE_STEP_CASE( 3 )\
+        BUILD_TREE_STEP_CASE( 4 )\
+        BUILD_TREE_STEP_CASE( 5 )\
+        BUILD_TREE_STEP_CASE( 6 )\
+        BUILD_TREE_STEP_CASE( 7 )\
+        BUILD_TREE_STEP_CASE( 8 )\
+        BUILD_TREE_STEP_CASE( 9 )\
+        BUILD_TREE_STEP_CASE( 10 )\
+        BUILD_TREE_STEP_CASE( 11 )\
+        BUILD_TREE_STEP_CASE( 12 )\
+        BUILD_TREE_STEP_CASE( 13 )\
+        BUILD_TREE_STEP_CASE( 14 )\
+        BUILD_TREE_STEP_CASE( 15 )\
+        BUILD_TREE_STEP_CASE( 16 )\
+        BUILD_TREE_STEP_CASE( 17 )\
+        BUILD_TREE_STEP_CASE( 18 )\
+        BUILD_TREE_STEP_CASE( 19 )\
+        BUILD_TREE_STEP_CASE( 20 )\
+        BUILD_TREE_STEP_CASE( 21 )\
+        BUILD_TREE_STEP_CASE( 22 )\
+        BUILD_TREE_STEP_CASE( 23 )\
+        BUILD_TREE_STEP_CASE( 24 )\
+        BUILD_TREE_STEP_CASE( 25 )\
+        BUILD_TREE_STEP_CASE( 26 )\
+        default: \
+            log_e("tree_depth %u unsuported\n", __level__ + 1); \
+            return 1; \
     } \
 
-#define FIND_NODES_PARAMS_IMPL( _last_level_ ) ({\
-    first_find_leaves_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2 ); \
+#define FIND_NODES_PARAMS_SIMPLE( _last_level_, _start_index_ ) ({\
+    first_find_leaves_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tmp_tree_2, _start_index_ ); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
         return 1; \
@@ -724,33 +740,64 @@ static void save_d(TVars *d, size_t size, int _step) {
     if( cuda_safe( cudaGetLastError() ) ) { \
         return 1; \
     } \
-    find_tree_params_Kernel<BLOCK_SIZE, _last_level_> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( tree_pointer ); \
+})
+
+#define FIND_NODES_PARAMS_IMPL( _last_lev_ ) ({ \
+    log_d("find nodes params: last level = %u", _last_lev_); \
+    size_t __last_level_count =  1 << (_last_lev_); \
+    node_t *orig_tree = tree_pointer; \
+    if( _last_lev_ <= BUILD_LEVEL ) { \
+        FIND_NODES_PARAMS_SIMPLE( _last_lev_, 0 ); \
+    } else { \
+        for( size_t iii = 0; iii < __last_level_count; iii += BUILD_COUNT ) { \
+            FIND_NODES_PARAMS_SIMPLE( BUILD_LEVEL, tree_pointer - orig_tree ); \
+            log_d("new find nodes params: level = %u, step %u ok", _last_lev_, iii); \
+            tree_pointer += BUILD_COUNT; \
+        } \
+    } \
+    find_tree_params_Kernel<BLOCK_SIZE> <<< dim3(1), dim3(BLOCK_SIZE) >>> ( orig_tree, _last_lev_ ); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
         return 1; \
     } \
 })
 
+#define FIND_NODES_PARAMS_CASE( _i_ ) \
+    case ((_i_) + 1): \
+        FIND_NODES_PARAMS_IMPL( _i_ ); \
+        break;
+
 #define FIND_NODES_PARAMS( _depth_ ) \
     switch(( _depth_ )) { \
-        case 2: \
-            FIND_NODES_PARAMS_IMPL( 1 ); \
-            break; \
-        case 3: \
-            FIND_NODES_PARAMS_IMPL( 2 ); \
-            break; \
-        case 4: \
-            FIND_NODES_PARAMS_IMPL( 3 ); \
-            break; \
-        case 5: \
-            FIND_NODES_PARAMS_IMPL( 4 ); \
-            break; \
-        case 6: \
-            FIND_NODES_PARAMS_IMPL( 5 ); \
-            break; \
-        case 7: \
-            FIND_NODES_PARAMS_IMPL( 6 ); \
-            break; \
+        FIND_NODES_PARAMS_CASE( 1 ) \
+        FIND_NODES_PARAMS_CASE( 2 ) \
+        FIND_NODES_PARAMS_CASE( 3 ) \
+        FIND_NODES_PARAMS_CASE( 4 ) \
+        FIND_NODES_PARAMS_CASE( 5 ) \
+        FIND_NODES_PARAMS_CASE( 6 ) \
+        FIND_NODES_PARAMS_CASE( 7 ) \
+        FIND_NODES_PARAMS_CASE( 8 ) \
+        FIND_NODES_PARAMS_CASE( 9 ) \
+        FIND_NODES_PARAMS_CASE( 10 ) \
+        FIND_NODES_PARAMS_CASE( 11 ) \
+        FIND_NODES_PARAMS_CASE( 12 ) \
+        FIND_NODES_PARAMS_CASE( 13 ) \
+        FIND_NODES_PARAMS_CASE( 14 ) \
+        FIND_NODES_PARAMS_CASE( 15 ) \
+        FIND_NODES_PARAMS_CASE( 16 ) \
+        FIND_NODES_PARAMS_CASE( 17 ) \
+        FIND_NODES_PARAMS_CASE( 18 ) \
+        FIND_NODES_PARAMS_CASE( 19 ) \
+        FIND_NODES_PARAMS_CASE( 20 ) \
+        FIND_NODES_PARAMS_CASE( 21 ) \
+        FIND_NODES_PARAMS_CASE( 22 ) \
+        FIND_NODES_PARAMS_CASE( 23 ) \
+        FIND_NODES_PARAMS_CASE( 24 ) \
+        FIND_NODES_PARAMS_CASE( 25 ) \
+        FIND_NODES_PARAMS_CASE( 26 ) \
+        default: \
+            log_e("tree_depth %u unsuported\n", _depth_); \
+            return 1; \
     }
 
 static int build_tree( Vortex *pos, size_t s, node_t *tree ) {

@@ -225,6 +225,26 @@ template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 3>( Vortex *pos
 template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 4>( Vortex *pos, unsigned int s, node_t *tree );
 template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 5>( Vortex *pos, unsigned int s, node_t *tree );
 template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 6>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 7>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 8>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 9>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 10>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 11>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 12>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 13>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 14>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 15>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 16>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 17>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 18>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 19>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 20>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 21>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 22>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 23>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 24>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 25>( Vortex *pos, unsigned int s, node_t *tree );
+template __global__ void calculate_tree_index_Kernel<BLOCK_SIZE, 26>( Vortex *pos, unsigned int s, node_t *tree );
 
 template <size_t block_size, size_t level>
 __global__ void first_tree_reduce_Kernel( Vortex *pos, unsigned int s, node_t *tree, node_t *output, unsigned start_index ) {
@@ -395,7 +415,7 @@ template __global__ void second_tree_reduce_Kernel<BLOCK_SIZE, 6>( node_t *input
     }
 
 template <size_t block_size, size_t level>
-__global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output ) {
+__global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, node_t *output, unsigned int start_index ) {
     unsigned int tid = threadIdx.x;
     unsigned int ii = blockIdx.x * ( block_size * 2 ) + tid;
     unsigned int grid_size = block_size * 2 * gridDim.x;
@@ -422,20 +442,23 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
         y = (float)pos[_index_].r[1]; \
         g = (float)pos[_index_].g; \
         tree_id = pos[_index_].tree_id; \
-        if( g > 0 ) { \
-            /* g_1_above */ \
-            arr[size * tid + 6 * tree_id + 0] += g; \
-            /* xg_1_above */ \
-            arr[size * tid + 6 * tree_id + 1] += x * g; \
-            /* yg_1_above */ \
-            arr[size * tid + 6 * tree_id + 2] += y * g; \
-        } else { \
-            /* g_1_below */ \
-            arr[size * tid + 6 * tree_id + 3] += g; \
-            /* xg_1_below */ \
-            arr[size * tid + 6 * tree_id + 4] += x * g; \
-            /* yg_1_below */ \
-            arr[size * tid + 6 * tree_id + 5] += y * g; \
+        tree_id -= start_index; \
+        if( tree_id < branch_count ) { \
+            if( g > 0 ) { \
+                /* g_1_above */ \
+                arr[size * tid + 6 * tree_id + 0] += g; \
+                /* xg_1_above */ \
+                arr[size * tid + 6 * tree_id + 1] += x * g; \
+                /* yg_1_above */ \
+                arr[size * tid + 6 * tree_id + 2] += y * g; \
+            } else { \
+                /* g_1_below */ \
+                arr[size * tid + 6 * tree_id + 3] += g; \
+                /* xg_1_below */ \
+                arr[size * tid + 6 * tree_id + 4] += x * g; \
+                /* yg_1_below */ \
+                arr[size * tid + 6 * tree_id + 5] += y * g; \
+            } \
         }
 
     while( ii < s ) {
@@ -470,12 +493,12 @@ __global__ void first_find_leaves_params_Kernel( Vortex *pos, unsigned int s, no
     }
 }
 
-template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 1>( Vortex *pos, unsigned int s, node_t *output );
-template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 2>( Vortex *pos, unsigned int s, node_t *output );
-template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 3>( Vortex *pos, unsigned int s, node_t *output );
-template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 4>( Vortex *pos, unsigned int s, node_t *output );
-template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 5>( Vortex *pos, unsigned int s, node_t *output );
-template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 6>( Vortex *pos, unsigned int s, node_t *output );
+template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 1>( Vortex *pos, unsigned int s, node_t *output, unsigned );
+template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 2>( Vortex *pos, unsigned int s, node_t *output, unsigned );
+template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 3>( Vortex *pos, unsigned int s, node_t *output, unsigned );
+template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 4>( Vortex *pos, unsigned int s, node_t *output, unsigned );
+template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 5>( Vortex *pos, unsigned int s, node_t *output, unsigned );
+template __global__ void first_find_leaves_params_Kernel<BLOCK_SIZE, 6>( Vortex *pos, unsigned int s, node_t *output, unsigned );
 
 template <size_t block_size, size_t level>
 __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s, node_t *output ) {
@@ -567,8 +590,8 @@ template __global__ void second_find_leaves_params_Kernel<BLOCK_SIZE, 4>( node_t
 template __global__ void second_find_leaves_params_Kernel<BLOCK_SIZE, 5>( node_t *input, unsigned int s, node_t *output );
 template __global__ void second_find_leaves_params_Kernel<BLOCK_SIZE, 6>( node_t *input, unsigned int s, node_t *output );
 
-template <size_t block_size, size_t level>
-__global__ void find_tree_params_Kernel( node_t *tree ) {
+template <size_t block_size>
+__global__ void find_tree_params_Kernel( node_t *tree, unsigned level ) {
     const unsigned int tid = threadIdx.x;
     const unsigned int i = blockIdx.x * block_size + tid;
 
@@ -591,13 +614,7 @@ __global__ void find_tree_params_Kernel( node_t *tree ) {
     }
 
 }
-
-template __global__ void find_tree_params_Kernel<BLOCK_SIZE, 1>( node_t *tree );
-template __global__ void find_tree_params_Kernel<BLOCK_SIZE, 2>( node_t *tree );
-template __global__ void find_tree_params_Kernel<BLOCK_SIZE, 3>( node_t *tree );
-template __global__ void find_tree_params_Kernel<BLOCK_SIZE, 4>( node_t *tree );
-template __global__ void find_tree_params_Kernel<BLOCK_SIZE, 5>( node_t *tree );
-template __global__ void find_tree_params_Kernel<BLOCK_SIZE, 6>( node_t *tree );
+template __global__ void find_tree_params_Kernel<BLOCK_SIZE>( node_t *treei, unsigned );
 
 __global__ void zero_Kernel( float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
