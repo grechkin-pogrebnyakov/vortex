@@ -652,7 +652,7 @@ static void save_d(TVars *d, size_t size, int _step) {
 
 #define BUILD_TREE_STEP_IMPL( _level_, _start_index_) ({ \
     first_tree_reduce_Kernel<BLOCK_SIZE, _level_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos, s, tree_pointer, tmp_tree_2, _start_index_ ); \
-    log_e("first_tree_reduce_Kernel %p lev = %u start_index = %u", tree_pointer, _level_, _start_index_); \
+    log_d("first_tree_reduce_Kernel %p lev = %u start_index = %u", tree_pointer, _level_, _start_index_); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
         log_e("first_tree_reduce_Kernel %u",_level_); \
@@ -667,11 +667,11 @@ static void save_d(TVars *d, size_t size, int _step) {
 })
 
 #define BUILD_TREE_STEP( _lev_ ) ({ \
-    log_e("tree build: level = %u", _lev_); \
+    log_d("tree build: level = %u", _lev_); \
     size_t __prev_level_count =  1 << (_lev_ - 1); \
     node_t *_next_level_tree_ = tree_pointer + __prev_level_count; \
     calculate_tree_index_Kernel<BLOCK_SIZE, _lev_> <<< dim3(second_reduce_size), dim3(BLOCK_SIZE) >>> ( pos,  s, tree_pointer ); \
-    log_e("calculate_tree_index_Kernel %p lev = %u", tree_pointer, _lev_); \
+    log_d("calculate_tree_index_Kernel %p lev = %u", tree_pointer, _lev_); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
         log_e("calculate_tree_index_Kernel %u",_lev_); \
@@ -684,7 +684,7 @@ static void save_d(TVars *d, size_t size, int _step) {
         node_t *orig_ptr = _next_level_tree_; \
         for( size_t iii = 0; iii < __prev_level_count; iii += BUILD_COUNT ) { \
             BUILD_TREE_STEP_IMPL( BUILD_LEVEL, _next_level_tree_ - orig_ptr ); \
-            log_e("new tree build: level = %u, step %u ok", _lev_, iii); \
+            log_d("new tree build: level = %u, step %u ok", _lev_, iii); \
             tree_pointer += BUILD_COUNT; \
             _next_level_tree_ += BUILD_COUNT * 2; \
         } \
