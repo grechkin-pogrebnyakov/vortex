@@ -126,6 +126,9 @@ static int read_config( const char *fname ) {
         else if( !_strncmp( buf, "max_ve_g ") ) {
             sscanf( buf, "%*s %lf", &conf.max_ve_g );
         }
+        else if( !_strncmp( buf, "theta ") ) {
+            sscanf( buf, "%*s %f", &conf.theta );
+        }
     }
     fclose( conf_f );
     return 0;

@@ -31,6 +31,7 @@ __constant__ TVars h_col_y;
 __constant__ TVars rho;
 __constant__ TVars rc_x;
 __constant__ TVars rc_y;
+__constant__ float theta;
 
 //#include "kernel.cuh"
 static int save_matr( TVars** M, size_t size, char *name ) {
@@ -751,7 +752,7 @@ static void save_d(TVars *d, size_t size, int _step) {
     } else { \
         for( size_t iii = 0; iii < __last_level_count; iii += BUILD_COUNT ) { \
             FIND_NODES_PARAMS_SIMPLE( BUILD_LEVEL, tree_pointer - orig_tree ); \
-            log_d("new find nodes params: level = %u, step %u ok", _last_lev_, iii); \
+            log_d("new find nodes params: tree_pointer = %p level = %u, step %u ok", tree_pointer, _last_lev_, iii); \
             tree_pointer += BUILD_COUNT; \
         } \
     } \
@@ -760,6 +761,7 @@ static void save_d(TVars *d, size_t size, int _step) {
     if( cuda_safe( cudaGetLastError() ) ) { \
         return 1; \
     } \
+    tree_pointer = orig_tree; \
 })
 
 #define FIND_NODES_PARAMS_CASE( _i_ ) \
@@ -800,6 +802,53 @@ static void save_d(TVars *d, size_t size, int _step) {
             return 1; \
     }
 
+#define FIND_NEAR_AND_FAR_LEAVES_IMPL( _last_lev_ ) \
+    find_near_and_far_leaves<BLOCK_SIZE, _last_lev_> <<< dim3(ceil(float(last_level_size) / float(BLOCK_SIZE))), dim3(BLOCK_SIZE) >>> ( tree + 3, tree_pointer, leaves_params, leaves_lists); \
+    log_d("find_near_and_far_leaves tree + 3 = %p, tree_pointer = %p last_level_size = %zu", tree+3, tree_pointer, last_level_size); \
+    cudaDeviceSynchronize(); \
+    if( cuda_safe( cudaGetLastError() ) ) { \
+        log_e("find_near_and_far_leaves"); \
+        return 1; \
+    }//if
+
+#define FIND_NEAR_AND_FAR_LEAVES_CASE( _i_ ) \
+    case ((_i_) + 1): \
+        FIND_NEAR_AND_FAR_LEAVES_IMPL( _i_ ); \
+        break;
+
+#define FIND_NEAR_AND_FAR_LEAVES( _depth_ ) \
+    switch(( _depth_ )) { \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 1 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 2 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 3 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 4 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 5 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 6 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 7 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 8 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 9 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 10 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 11 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 12 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 13 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 14 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 15 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 16 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 17 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 18 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 19 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 20 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 21 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 22 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 23 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 24 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 25 ) \
+        FIND_NEAR_AND_FAR_LEAVES_CASE( 26 ) \
+        default: \
+            log_e("tree_depth %u unsuported\n", _depth_); \
+            return 1; \
+    }
+
 static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
     unsigned int second_reduce_size = 2 * BLOCK_SIZE;
     static node_t *tmp_tree = NULL;
@@ -827,6 +876,24 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
 
     FIND_NODES_PARAMS( conf.tree_depth );
 
+    size_t last_level_size = 1 << (conf.tree_depth - 1);
+    static float4 *leaves_params = NULL;
+    static uint8_t *leaves_lists = NULL;
+    static float4 *leaves_params_host = NULL;
+    static uint8_t *leaves_lists_host = NULL;
+
+    if( !leaves_params ) {
+        cuda_safe( cudaMalloc( (void**)&leaves_params, last_level_size * sizeof(float4) ) );
+        cuda_safe( cudaMalloc( (void**)&leaves_lists, last_level_size * last_level_size ) );
+        leaves_params_host = (float4*)malloc(last_level_size * sizeof(float4) );
+        leaves_lists_host = (uint8_t*)malloc(last_level_size * last_level_size );
+    }
+
+    cuda_safe( cudaMemset( (void*)leaves_params, 0, last_level_size * sizeof(float4) ) );
+    cuda_safe( cudaMemset( (void*)leaves_lists, 0, last_level_size * last_level_size ) );
+
+    FIND_NEAR_AND_FAR_LEAVES( conf.tree_depth );
+
     log_d("finish tree_building");
     return 0;
 }
@@ -839,8 +906,10 @@ static void output_tree( tree_t *t, size_t depth, int current_step ) {
         unsigned count_on_level = 1 << j;
         fprintf( f, "\nlevel = %zu\n", j );
         for( size_t jj = 0; jj < count_on_level; ++jj ) {
-            fprintf( f, "i = %zu\nx_min = %f\nx_max = %f\ny_min = %f\ny_max = %f\naxe = %u\nmed = %f\ng_above = %f\nxg_above = %f\nyg_above = %f\ng_below = %f\nxg_below = %f\nyg_below = %f\n\n",
-            jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].med, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below, t[jj].xg_below, t[jj].yg_below );
+            fprintf( f, "i = %zu\nx_min = %f\nx_max = %f\ny_min = %f\ny_max = %f\naxe = %u\nmed = %f\ng_above = %f\nxg_above = %f\nyg_above = %f\ng_below = %f\n"
+                    "xg_below = %f\nyg_below = %f\nrc_above.x = %f\nrc_above.y = %f\nrc_below.x = %f\nrc_below.y = %f\nrc.x = %f\nrc.y = %f\ndimx = %f\ndimy = %f\n\n",
+            jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].med, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below,
+            t[jj].xg_below, t[jj].yg_below, t[jj].rc_above.x, t[jj].rc_above.y, t[jj].rc_below.x, t[jj].rc_below.y, t[jj].rc.x, t[jj].rc.y, t[jj].dim.x, t[jj].dim.y );
         }
         t += count_on_level;
     }
@@ -1116,6 +1185,7 @@ int init_device_conf_values() {
     if( cuda_safe( cudaMemcpyToSymbol( rho, &conf.rho, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( rc_x, &conf.rc_x, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( rc_y, &conf.rc_y, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( theta, &conf.theta, sizeof(float) ) ) ) return 1;
     return 0;
 }
 

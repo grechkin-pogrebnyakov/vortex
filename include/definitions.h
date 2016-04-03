@@ -38,6 +38,7 @@
 typedef double TVars;									    // тип данных, применяемый для ВСЕХ чисел с плавающей точкой
 typedef TVars TVctr[2];								    // вектор
 
+// тип данных ячеек дерева
 typedef struct node_t {
     float x_min, x_max, y_min, y_max;
     float med;
@@ -48,6 +49,10 @@ typedef struct node_t {
     float g_below;
     float xg_below;
     float yg_below;
+    float2 rc_above;
+    float2 rc_below;
+    float2 rc;
+    float2 dim;
 } tree_t;
 
 // тип данных ВЭ
@@ -115,6 +120,7 @@ struct conf_t {
     uint8_t log_level;
     char timings_file[256];
     size_t tree_depth;
+    float theta;
 };
 
 #endif // DEFINITIONS_H_

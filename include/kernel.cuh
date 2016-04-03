@@ -37,6 +37,10 @@ __global__ void second_find_leaves_params_Kernel( node_t *input, unsigned int s,
 template <size_t block_size>
 __global__ void find_tree_params_Kernel( node_t *treei, unsigned );
 
+// CUDA ЯДРО определение харакретистик ячеек нижнего уровня для дальнейщего расчёта скоростей
+template <size_t block_size, size_t level>
+__global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *leaves_params, uint8_t *leaves_lists);
+
 // CUDA ЯДРО обнуление ВЭ, начиная с элемента s, при этом у них случайные координаты
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);
 
@@ -185,6 +189,9 @@ __device__ inline TVars Ro2(TVars a0, TVars a1, TVars b0, TVars b1) {
 __device__ inline float Ro2f(float a0, float a1, float b0, float b1) {
     return (a0 - b0) * (a0 - b0) + (a1 - b1) * (a1 - b1);
 }
+
+#define Ro2f2(__a, __b) ((__a.x - __b.x) * (__a.x - __b.x) + (__a.y - __b.y) * (__a.y - __b.y))
+#define Len2f2(__a) ( ((__a).x) * ((__a).x) + ((__a).y) * ((__a).y) )
 
 // Вчисление I_0, I_3
 __device__ void I_0_I_3(TVars Ra_0, TVars Ra_1, TVars Rb_0, TVars Rb_1, TVars Norm_0, TVars Norm_1, TVars Rj_0, TVars Rj_1,
