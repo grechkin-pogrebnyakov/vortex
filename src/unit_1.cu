@@ -647,7 +647,7 @@ static void save_d(TVars *d, size_t size, int _step) {
     fclose( outfile );
 } //save_to_file
 
-#define BUILD_LEVEL (3)
+#define BUILD_LEVEL (2)
 #define BUILD_COUNT (1 << (BUILD_LEVEL-1))
 
 #define BUILD_TREE_STEP_IMPL( _level_, _start_index_) ({ \
