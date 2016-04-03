@@ -919,6 +919,25 @@ static int build_tree( Vortex *pos, size_t s, float4 *leaves_params, uint8_t *is
 
     FIND_NEAR_AND_FAR_LEAVES( conf.tree_depth );
 
+    if( LEV_DEBUG < conf.log_level ) {
+        static float4 *leaves_params_host = NULL;
+        static uint8_t *leaves_lists_host = NULL;
+        if( !leaves_params_host ) {
+            leaves_params_host = (float4*)malloc(last_level_size * sizeof(float4) );
+            leaves_lists_host = (uint8_t*)malloc(last_level_size * last_level_size );
+        }
+        cuda_safe( cudaMemcpy( (void*)leaves_params_host, (void*)leaves_params,  last_level_size * sizeof(float4), cudaMemcpyDeviceToHost ) );
+        cuda_safe( cudaMemcpy( (void*)leaves_lists_host, (void*)is_fast_lists,  last_level_size * last_level_size, cudaMemcpyDeviceToHost ) );
+        for( size_t k = 0; k < last_level_size; ++k ) {
+            printf("leave %zu\nA = %f\tB = %f\tC = %f\tD = %f\n", k, leaves_params_host[k].x, leaves_params_host[k].y, leaves_params_host[k].z, leaves_params_host[k].w);
+            for( size_t m = 0; m < last_level_size; ++m ) {
+                printf("%u", leaves_lists_host[k * last_level_size + m]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
     log_d("finish tree_building");
     return 0;
 }

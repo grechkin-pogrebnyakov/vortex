@@ -679,16 +679,16 @@ __global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *
     leaves_params->y = 0; // B
     leaves_params->z = 0; // C
     leaves_params->w = 0; // D
-    node_t *leave = leaves+i;
+    node_t leave = leaves[i];
 
     for( int j = 2; j < level; ++j ) {
         size_t nodes_on_level = 1 << j;
         for( int k = 0; k < nodes_on_level; ++k ) {
             uint8_t is_fast = cur_is_fast_list[k];
-            if( !is_fast && ( Ro2f2( leave->rc, tree[k].rc ) * theta > leave->dim.x + leave->dim.y + tree[k].dim.x + tree[k].dim.y ) ) {
+            if( !is_fast && ( Ro2f2( leave.rc, tree[k].rc ) * theta > leave.dim.x + leave.dim.y + tree[k].dim.x + tree[k].dim.y ) ) {
                 //calcilate A, B, C, D
-                float2 r_above = make_float2(leave->rc.x - tree[k].rc_above.x, leave->rc.y - tree[k].rc_above.y);
-                float2 r_below = make_float2(leave->rc.x - tree[k].rc_below.x, leave->rc.y - tree[k].rc_below.y);
+                float2 r_above = make_float2(leave.rc.x - tree[k].rc_above.x, leave.rc.y - tree[k].rc_above.y);
+                float2 r_below = make_float2(leave.rc.x - tree[k].rc_below.x, leave.rc.y - tree[k].rc_below.y);
                 float r_above_len2 = Len2f2(r_above);
                 float r_below_len2 = Len2f2(r_below);
                 float r_above_len4 = r_above_len2 * r_above_len2;
@@ -710,10 +710,10 @@ __global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *
     }
     for( int k = 0; k < leaves_count; ++k ) {
         uint8_t is_fast = cur_is_fast_list[k];
-        if( !is_fast && ( Ro2f2( leave->rc, tree[k].rc ) * theta > leave->dim.x + leave->dim.y + tree[k].dim.x + tree[k].dim.y ) ) {
+        if( !is_fast && ( Ro2f2( leave.rc, tree[k].rc ) * theta > leave.dim.x + leave.dim.y + tree[k].dim.x + tree[k].dim.y ) ) {
             //calcilate A, B, C, D
-            float2 r_above = make_float2(leave->rc.x - tree[k].rc_above.x, leave->rc.y - tree[k].rc_above.y);
-            float2 r_below = make_float2(leave->rc.x - tree[k].rc_below.x, leave->rc.y - tree[k].rc_below.y);
+            float2 r_above = make_float2(leave.rc.x - tree[k].rc_above.x, leave.rc.y - tree[k].rc_above.y);
+            float2 r_below = make_float2(leave.rc.x - tree[k].rc_below.x, leave.rc.y - tree[k].rc_below.y);
             float r_above_len2 = Len2f2(r_above);
             float r_below_len2 = Len2f2(r_below);
             float r_above_len4 = r_above_len2 * r_above_len2;
