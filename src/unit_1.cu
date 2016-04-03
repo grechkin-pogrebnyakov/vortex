@@ -14,6 +14,7 @@
 
 extern struct conf_t conf;
 extern cudaError_t cuda_error;
+extern int current_step;
 
 __constant__ TVars dt;
 __constant__ size_t quant;
@@ -534,7 +535,6 @@ int vort_creation(Vortex *pos, TVctr *V_infDev, size_t n_of_birth, size_t n_of_b
     if( cuda_safe( cudaMalloc( (void**)&R_p, (n_of_birth_BLOCK_S) * sizeof(TVars) ) ) ) {
         return 1;
     }
-    extern int current_step;
 
     dim3 threads1 = dim3(BLOCK_SIZE);
     dim3 blocks1  = dim3(n_of_birth_BLOCK_S/BLOCK_SIZE);
@@ -647,6 +647,24 @@ static void save_d(TVars *d, size_t size, int _step) {
     }//for i
     fclose( outfile );
 } //save_to_file
+
+static void output_tree( tree_t *t, size_t depth, int current_step ) {
+    char filename[64];
+    snprintf(filename, sizeof(filename), "tree_%d.txt", current_step);
+    FILE *f = fopen(filename, "w");
+    for( size_t j = 0; j < depth; ++j ) {
+        unsigned count_on_level = 1 << j;
+        fprintf( f, "\nlevel = %zu\n", j );
+        for( size_t jj = 0; jj < count_on_level; ++jj ) {
+            fprintf( f, "i = %zu\nx_min = %f\nx_max = %f\ny_min = %f\ny_max = %f\naxe = %u\nmed = %f\ng_above = %f\nxg_above = %f\nyg_above = %f\ng_below = %f\n"
+                    "xg_below = %f\nyg_below = %f\nrc_above.x = %f\nrc_above.y = %f\nrc_below.x = %f\nrc_below.y = %f\nrc.x = %f\nrc.y = %f\ndimx = %f\ndimy = %f\n\n",
+            jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].med, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below,
+            t[jj].xg_below, t[jj].yg_below, t[jj].rc_above.x, t[jj].rc_above.y, t[jj].rc_below.x, t[jj].rc_below.y, t[jj].rc.x, t[jj].rc.y, t[jj].dim.x, t[jj].dim.y );
+        }
+        t += count_on_level;
+    }
+    fclose(f);
+}
 
 #define BUILD_LEVEL (2)
 #define BUILD_COUNT (1 << (BUILD_LEVEL-1))
@@ -803,7 +821,7 @@ static void save_d(TVars *d, size_t size, int _step) {
     }
 
 #define FIND_NEAR_AND_FAR_LEAVES_IMPL( _last_lev_ ) \
-    find_near_and_far_leaves<BLOCK_SIZE, _last_lev_> <<< dim3(ceil(float(last_level_size) / float(BLOCK_SIZE))), dim3(BLOCK_SIZE) >>> ( tree + 3, tree_pointer, leaves_params, leaves_lists); \
+    find_near_and_far_leaves<BLOCK_SIZE, _last_lev_> <<< dim3(ceil(float(last_level_size) / float(BLOCK_SIZE))), dim3(BLOCK_SIZE) >>> ( tree + 3, tree_pointer, leaves_params, is_fast_lists); \
     log_d("find_near_and_far_leaves tree + 3 = %p, tree_pointer = %p last_level_size = %zu", tree+3, tree_pointer, last_level_size); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
@@ -849,7 +867,18 @@ static void save_d(TVars *d, size_t size, int _step) {
             return 1; \
     }
 
-static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
+static int build_tree( Vortex *pos, size_t s, float4 *leaves_params, uint8_t *is_fast_lists ) {
+    static node_t *tree = NULL;
+    static size_t tree_size = 0;
+    if ( !tree_size )
+    {
+        for( size_t i = 0; i < conf.tree_depth; ++i ) {
+            tree_size += 1 << i;
+        }
+        log_i( "tree_size = %zu", tree_size );
+        cuda_safe( cudaMalloc( (void**)&tree, tree_size * sizeof( node_t ) ) );
+    }
+
     unsigned int second_reduce_size = 2 * BLOCK_SIZE;
     static node_t *tmp_tree = NULL;
     if( !tmp_tree )
@@ -876,45 +905,22 @@ static int build_tree( Vortex *pos, size_t s, node_t *tree ) {
 
     FIND_NODES_PARAMS( conf.tree_depth );
 
-    size_t last_level_size = 1 << (conf.tree_depth - 1);
-    static float4 *leaves_params = NULL;
-    static uint8_t *leaves_lists = NULL;
-    static float4 *leaves_params_host = NULL;
-    static uint8_t *leaves_lists_host = NULL;
-
-    if( !leaves_params ) {
-        cuda_safe( cudaMalloc( (void**)&leaves_params, last_level_size * sizeof(float4) ) );
-        cuda_safe( cudaMalloc( (void**)&leaves_lists, last_level_size * last_level_size ) );
-        leaves_params_host = (float4*)malloc(last_level_size * sizeof(float4) );
-        leaves_lists_host = (uint8_t*)malloc(last_level_size * last_level_size );
+    if( LEV_DEBUG < conf.log_level ) {
+        node_t *host_tree = (node_t*)malloc(sizeof(node_t) * tree_size);
+        cuda_safe( cudaMemcpy( (void*)host_tree, (void*)tree, tree_size * sizeof( node_t ), cudaMemcpyDeviceToHost ) );
+        output_tree(host_tree, conf.tree_depth, current_step);
+        free(host_tree);
     }
 
+    size_t last_level_size = 1 << (conf.tree_depth - 1);
+
     cuda_safe( cudaMemset( (void*)leaves_params, 0, last_level_size * sizeof(float4) ) );
-    cuda_safe( cudaMemset( (void*)leaves_lists, 0, last_level_size * last_level_size ) );
+    cuda_safe( cudaMemset( (void*)is_fast_lists, 0, last_level_size * last_level_size ) );
 
     FIND_NEAR_AND_FAR_LEAVES( conf.tree_depth );
 
     log_d("finish tree_building");
     return 0;
-}
-
-static void output_tree( tree_t *t, size_t depth, int current_step ) {
-    char filename[64];
-    snprintf(filename, sizeof(filename), "tree_%d.txt", current_step);
-    FILE *f = fopen(filename, "w");
-    for( size_t j = 0; j < depth; ++j ) {
-        unsigned count_on_level = 1 << j;
-        fprintf( f, "\nlevel = %zu\n", j );
-        for( size_t jj = 0; jj < count_on_level; ++jj ) {
-            fprintf( f, "i = %zu\nx_min = %f\nx_max = %f\ny_min = %f\ny_max = %f\naxe = %u\nmed = %f\ng_above = %f\nxg_above = %f\nyg_above = %f\ng_below = %f\n"
-                    "xg_below = %f\nyg_below = %f\nrc_above.x = %f\nrc_above.y = %f\nrc_below.x = %f\nrc_below.y = %f\nrc.x = %f\nrc.y = %f\ndimx = %f\ndimy = %f\n\n",
-            jj, t[jj].x_min, t[jj].x_max, t[jj].y_min, t[jj].y_max, t[jj].axe, t[jj].med, t[jj].g_above, t[jj].xg_above, t[jj].yg_above, t[jj].g_below,
-            t[jj].xg_below, t[jj].yg_below, t[jj].rc_above.x, t[jj].rc_above.y, t[jj].rc_below.x, t[jj].rc_below.y, t[jj].rc.x, t[jj].rc.y, t[jj].dim.x, t[jj].dim.y );
-        }
-        t += count_on_level;
-    }
-    fclose(f);
-
 }
 
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
@@ -931,34 +937,26 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 
     log_d( "s = %zu", s );
 
-    static node_t *tree = NULL;
-    static size_t tree_size = 0;
-    if( conf.tree_depth > 1 ) {
-        if ( !tree_size )
-        {
-            for( size_t i = 0; i < conf.tree_depth; ++i ) {
-                tree_size += 1 << i;
-            }
-            log_e( "tree_size = %zu", tree_size );
-        }
-        if( !tree )
-            cuda_safe( cudaMalloc( (void**)&tree, tree_size * sizeof( node_t ) ) );
+    static float4 *leaves_params = NULL;
+    static uint8_t *is_fast_lists = NULL;
 
+    if( conf.tree_depth > 1 ) {
+        if( !leaves_params ) {
+            size_t last_level_size = 1 << (conf.tree_depth - 1);
+            cuda_safe( cudaMalloc( (void**)&leaves_params, last_level_size * sizeof(float4) ) );
+            cuda_safe( cudaMalloc( (void**)&is_fast_lists, last_level_size * last_level_size ) );
+        }
 
         cudaEvent_t start_tree = 0, stop_tree = 0;
         start_timer( &start_tree, &stop_tree );
-        if( build_tree( pos, n, tree ) ) {
+        if( build_tree( pos, n, leaves_params, is_fast_lists ) ) {
             log_e( "error tree building" );
             return 1;
         }
-        log_e("tree_time = %f", stop_timer( start_tree, stop_tree ));
-        node_t *host_tree = (node_t*)malloc(sizeof(node_t) * tree_size);
-        cuda_safe( cudaMemcpy( (void*)host_tree, (void*)tree, tree_size * sizeof( node_t ), cudaMemcpyDeviceToHost ) );
-        output_tree(host_tree, conf.tree_depth, current_step);
-        free(host_tree);
+        log_i("tree_time = %f", stop_timer( start_tree, stop_tree ));
     }
 
-    shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d);
+    shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d );
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
