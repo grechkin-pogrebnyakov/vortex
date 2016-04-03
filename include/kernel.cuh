@@ -39,7 +39,7 @@ __global__ void find_tree_params_Kernel( node_t *treei, unsigned );
 
 // CUDA ЯДРО определение харакретистик ячеек нижнего уровня для дальнейщего расчёта скоростей
 template <size_t block_size, size_t level>
-__global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *leaves_params, uint8_t *leaves_lists);
+__global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *leaves_params, uint8_t *leaves_lists, float2*);
 
 // CUDA ЯДРО обнуление ВЭ, начиная с элемента s, при этом у них случайные координаты
 __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);
@@ -48,7 +48,7 @@ __global__ void zero_Kernel(float *randoms, Vortex *pos, int s);
 __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t n_birth_BLOCK_S, TVars * M, TVars *d_g, TVars *R_p, tPanel *panel);
 
 // CUDA ЯДРО Расчёт скоростей ВЭ (с использованием разделяемой памяти) + процедура поиска хорактерного расстояния до 3-х соседних ВЭ
-__global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d);
+__global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d, float4 *leaves_params, uint8_t *is_fast_list, size_t last_level, float2 *rc);
 
 // CUDA ЯДРО Расчёт и прибавление диффузионной скорости ВЭ
 __global__ void diffusion_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVars nu);

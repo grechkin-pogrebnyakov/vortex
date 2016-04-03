@@ -173,17 +173,17 @@ __global__ void second_find_range_Kernel( node_t *input, unsigned int s, node_t 
         tree[blockIdx.x].y_max = yy_max;
         float dimx = xx_max - xx_min;
         float dimy = yy_max - yy_min;
-        float rcx = (xx_max + xx_min)/2.0;
-        float rcy = (yy_max + yy_min)/2.0;
+        float rcxx = (xx_max + xx_min)/2.0;
+        float rcyy = (yy_max + yy_min)/2.0;
         tree[blockIdx.x].dim.x = dimx;
         tree[blockIdx.x].dim.y = dimy;
-        tree[blockIdx.x].rc.x = rcx;
-        tree[blockIdx.x].rc.y = rcy;
+        tree[blockIdx.x].rc.x = rcxx;
+        tree[blockIdx.x].rc.y = rcyy;
         if( dimx > dimy ) {
-            tree[blockIdx.x].med = rcx;
+            tree[blockIdx.x].med = rcxx;
             tree[blockIdx.x].axe = 0;
         } else {
-            tree[blockIdx.x].med = rcy;
+            tree[blockIdx.x].med = rcyy;
             tree[blockIdx.x].axe = 1;
         }
     }
@@ -385,17 +385,17 @@ __global__ void second_tree_reduce_Kernel( node_t *input, unsigned int s, node_t
             output[blockIdx.x * branch_count + i].yg_below = 0;
             float dimx = xx_max - xx_min;
             float dimy = yy_max - yy_min;
-            float rcx = (xx_max + xx_min) / 2.0;
-            float rcy = (yy_max + yy_min) / 2.0;
-            output[blockIdx.x * branch_count + i].rc.x = rcx;
-            output[blockIdx.x * branch_count + i].rc.y = rcy;
+            float rcxx = (xx_max + xx_min) / 2.0;
+            float rcyy = (yy_max + yy_min) / 2.0;
+            output[blockIdx.x * branch_count + i].rc.x = rcxx;
+            output[blockIdx.x * branch_count + i].rc.y = rcyy;
             output[blockIdx.x * branch_count + i].dim.x = dimx;
             output[blockIdx.x * branch_count + i].dim.y = dimy;
             if( dimx > dimy ) {
-                output[blockIdx.x * branch_count + i].med = rcx;
+                output[blockIdx.x * branch_count + i].med = rcxx;
                 output[blockIdx.x * branch_count + i].axe = 0;
             } else {
-                output[blockIdx.x * branch_count + i].med = rcy;
+                output[blockIdx.x * branch_count + i].med = rcyy;
                 output[blockIdx.x * branch_count + i].axe = 1;
             }
         }
@@ -655,7 +655,7 @@ __global__ void find_tree_params_Kernel( node_t *tree, unsigned level ) {
 template __global__ void find_tree_params_Kernel<BLOCK_SIZE>( node_t *tree, unsigned );
 
 template <size_t block_size, size_t level>
-__global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *leaves_params, uint8_t *is_fast_list ) {
+__global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *leaves_params, uint8_t *is_fast_list, float2 *rc ) {
     const unsigned int tid = threadIdx.x;
     const unsigned int i = blockIdx.x * block_size + tid;
     const size_t leaves_count = 1 << (level);
@@ -680,6 +680,7 @@ __global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *
     leaves_params->z = 0; // C
     leaves_params->w = 0; // D
     node_t leave = leaves[i];
+    rc[i] = leave.rc;
 
     for( int j = 2; j < level; ++j ) {
         size_t nodes_on_level = 1 << j;
@@ -728,38 +729,39 @@ __global__ void find_near_and_far_leaves( node_t *tree, node_t *leaves, float4 *
         }
     }
 }
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 1>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 2>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 3>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 4>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 5>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 6>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 7>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 8>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 9>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 10>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 11>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 12>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 13>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 14>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 15>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 16>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 17>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 18>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 19>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 20>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 21>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 22>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 23>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 24>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 25>( node_t*, node_t*, float4*, uint8_t* );
-template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 26>( node_t*, node_t*, float4*, uint8_t* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 1>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 2>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 3>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 4>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 5>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 6>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 7>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 8>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 9>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 10>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 11>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 12>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 13>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 14>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 15>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 16>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 17>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 18>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 19>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 20>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 21>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 22>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 23>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 24>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 25>( node_t*, node_t*, float4*, uint8_t*, float2* );
+template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 26>( node_t*, node_t*, float4*, uint8_t*, float2* );
 
 __global__ void zero_Kernel( float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
     pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5;
     pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5;
     pos[s+ind].g = 0.0;
+    pos[s+ind].tree_id = 0;
 }
 
 __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels) {
@@ -858,7 +860,7 @@ __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t 
 	}
 }
 
-__global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d) {
+__global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d, float4 *leaves_params, uint8_t *is_fast_list, size_t last_level, float2 *rc) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
     float y0 = 0.0f, y1 = 0.0f;
 //	TVars dist2;
@@ -871,13 +873,30 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     float dst = 0.0f;
     // координаты расчётной точки
     float a0 = 0.0f, a1 = 0.0f;
+
+    size_t count_of_leaves = 0;
+    float2 cur_rc;
+
     // координаты воздействующей точки
     __shared__ float b_sh_0 [BLOCK_SIZE];
     __shared__ float b_sh_1 [BLOCK_SIZE];
     // интенсивность воздействующей точки
     __shared__ float g [BLOCK_SIZE];
+
+    __shared__ unsigned tree_id_sh[BLOCK_SIZE];
+
     a0 = (float)pos[i].r[0];
     a1 = (float)pos[i].r[1];
+
+    unsigned tree_id = pos[i].tree_id;
+
+    if( leaves_params ) {
+        count_of_leaves = 1 << last_level;
+        cur_rc = rc[tree_id];
+        is_fast_list += tree_id * count_of_leaves;
+        leaves_params += tree_id;
+    }
+
     d_1 = 1e+5f;
     d_2 = 1e+5f;
     d_3 = 1e+5f;
@@ -886,9 +905,12 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
         b_sh_0[threadIdx.x] = (float)pos[threadIdx.x+f].r[0];
         b_sh_1[threadIdx.x] = (float)pos[threadIdx.x+f].r[1];
         g[threadIdx.x] = (float)pos[threadIdx.x+f].g;
+        tree_id_sh[threadIdx.x] = pos[threadIdx.x].tree_id;
         __syncthreads();
         for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
             if( j + f == i )
+                continue;
+            if( leaves_params && is_fast_list[tree_id_sh[j]] )
                 continue;
             dist2 = Ro2f(a0, a1, b_sh_0[j], b_sh_1[j]);
             // dist2 = (a0 - b_sh_0[j]) * (a0 - b_sh_0[j]) + (a1 - b_sh_1[j]) * (a1 - b_sh_1[j]);
@@ -915,8 +937,19 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
 //    d[i] = sqrt(d_1 + d_2 + d_3) / 3;
     d[i] = (sqrtf(d_1) + sqrtf(d_2) + sqrtf(d_3)) / 3;
 //    d[i] = max(d[i], 4.0 * ve_size / 3.0);
+
     V[i].v[0] = (TVars)( y0 / (2 * M_PI) + (*V_inf)[0] );
     V[i].v[1] = (TVars)( y1 / (2 * M_PI) + (*V_inf)[1] );
+
+    if( leaves_params ) {
+        float2 delta_r = make_float2(a0 - cur_rc.x, a1 - cur_rc.y);
+        float2 fast_vel = make_float2(leaves_params->x + leaves_params->z * delta_r.x + leaves_params->w * delta_r.y,
+                                      leaves_params->y + leaves_params->w * delta_r.x - leaves_params->z * delta_r.y);
+
+
+        V[i].v[0] += fast_vel.x;
+        V[i].v[1] += fast_vel.y;
+    }
 //    for( int k = 0; k < 2; ++k )
 //      V[i].v[k] =  (*V_inf)[k];
     __syncthreads();

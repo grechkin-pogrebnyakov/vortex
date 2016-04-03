@@ -821,7 +821,7 @@ static void output_tree( tree_t *t, size_t depth, int current_step ) {
     }
 
 #define FIND_NEAR_AND_FAR_LEAVES_IMPL( _last_lev_ ) \
-    find_near_and_far_leaves<BLOCK_SIZE, _last_lev_> <<< dim3(ceil(float(last_level_size) / float(BLOCK_SIZE))), dim3(BLOCK_SIZE) >>> ( tree + 3, tree_pointer, leaves_params, is_fast_lists); \
+    find_near_and_far_leaves<BLOCK_SIZE, _last_lev_> <<< dim3(ceil(float(last_level_size) / float(BLOCK_SIZE))), dim3(BLOCK_SIZE) >>> ( tree + 3, tree_pointer, leaves_params, is_fast_lists, rc); \
     log_d("find_near_and_far_leaves tree + 3 = %p, tree_pointer = %p last_level_size = %zu", tree+3, tree_pointer, last_level_size); \
     cudaDeviceSynchronize(); \
     if( cuda_safe( cudaGetLastError() ) ) { \
@@ -867,7 +867,7 @@ static void output_tree( tree_t *t, size_t depth, int current_step ) {
             return 1; \
     }
 
-static int build_tree( Vortex *pos, size_t s, float4 *leaves_params, uint8_t *is_fast_lists ) {
+static int build_tree( Vortex *pos, size_t s, float4 *leaves_params, uint8_t *is_fast_lists, float2 *rc ) {
     static node_t *tree = NULL;
     static size_t tree_size = 0;
     if ( !tree_size )
@@ -958,29 +958,34 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
 
     static float4 *leaves_params = NULL;
     static uint8_t *is_fast_lists = NULL;
+    static float2 *rc = NULL;
 
     if( conf.tree_depth > 1 ) {
         if( !leaves_params ) {
             size_t last_level_size = 1 << (conf.tree_depth - 1);
             cuda_safe( cudaMalloc( (void**)&leaves_params, last_level_size * sizeof(float4) ) );
             cuda_safe( cudaMalloc( (void**)&is_fast_lists, last_level_size * last_level_size ) );
+            cuda_safe( cudaMalloc( (void**)&rc, last_level_size * sizeof(float2) ) );
         }
 
         cudaEvent_t start_tree = 0, stop_tree = 0;
         start_timer( &start_tree, &stop_tree );
-        if( build_tree( pos, n, leaves_params, is_fast_lists ) ) {
+        if( build_tree( pos, n, leaves_params, is_fast_lists, rc ) ) {
             log_e( "error tree building" );
             return 1;
         }
         log_i("tree_time = %f", stop_timer( start_tree, stop_tree ));
     }
 
-    shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d );
+    cudaEvent_t start_convective = 0, stop_convective = 0;
+    start_timer( &start_convective, &stop_convective );
+    shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d, leaves_params, is_fast_lists, conf.tree_depth - 1, rc);
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
+    log_i("convective_time = %f", stop_timer( start_convective, stop_convective ));
 
     if( LEV_DEBUG < conf.log_level ) {
         VEL = (PVortex*)malloc( sizeof(PVortex) * s );
