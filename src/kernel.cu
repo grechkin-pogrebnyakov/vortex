@@ -882,6 +882,8 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     __shared__ float b_sh_1 [BLOCK_SIZE];
     // интенсивность воздействующей точки
     __shared__ float g [BLOCK_SIZE];
+    const unsigned sss = 1 << 18;
+    uint8_t local_is_fast_list[sss];
 
     __shared__ unsigned tree_id_sh[BLOCK_SIZE];
 
@@ -895,6 +897,7 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
         cur_rc = rc[tree_id];
         is_fast_list += tree_id * count_of_leaves;
         leaves_params += tree_id;
+        memcpy(local_is_fast_list, is_fast_list, count_of_leaves);
     }
 
     d_1 = 1e+5f;
@@ -910,7 +913,7 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
         for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
             if( j + f == i )
                 continue;
-            if( leaves_params && is_fast_list[tree_id_sh[j]] )
+            if( leaves_params && local_is_fast_list[tree_id_sh[j]] )
                 continue;
             dist2 = Ro2f(a0, a1, b_sh_0[j], b_sh_1[j]);
             // dist2 = (a0 - b_sh_0[j]) * (a0 - b_sh_0[j]) + (a1 - b_sh_1[j]) * (a1 - b_sh_1[j]);
