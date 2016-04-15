@@ -882,7 +882,7 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     __shared__ float b_sh_1 [BLOCK_SIZE];
     // интенсивность воздействующей точки
     __shared__ float g [BLOCK_SIZE];
-    const unsigned sss = 1 << 18;
+    const unsigned sss = 1 << 16;
     uint8_t local_is_fast_list[sss];
 
     __shared__ unsigned tree_id_sh[BLOCK_SIZE];
