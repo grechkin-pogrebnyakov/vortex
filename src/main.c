@@ -47,33 +47,43 @@ static int read_config( const char *fname ) {
     while ( fgets( buf, sizeof(buf), conf_f ) ) {
         if( !_strncmp( buf, "steps " ) ) {
             sscanf( buf, "%*s %zu", &conf.steps);
+            log_d("steps = %zu", conf.steps);
         }
         else if( !_strncmp( buf, "saving_step ") ) {
             sscanf( buf, "%*s %zu", &conf.saving_step );
+            log_d("saving_step = %zu", conf.saving_step);
         }
         else if( !_strncmp( buf, "tree_depth ") ) {
             sscanf( buf, "%*s %zu", &conf.tree_depth );
+            log_d("tree_depth = %zu", conf.tree_depth);
         }
         else if( !_strncmp( buf, "dt ") ) {
             sscanf( buf, "%*s %lf", &conf.dt );
+            log_d("dt = %lf", conf.dt);
         }
         else if( !_strncmp( buf, "v_inf_incr_steps ") ) {
             sscanf( buf, "%*s %zu", &conf.v_inf_incr_steps );
+            log_d("v_inf_incr_steps = %zu", conf.v_inf_incr_steps);
         }
         else if( !_strncmp( buf, "increment_step ") ) {
             sscanf( buf, "%*s %zu", &conf.inc_step );
+            log_d("increment_step = %zu", conf.inc_step);
         }
         else if( !_strncmp( buf, "viscosity ") ) {
             sscanf( buf, "%*s %lf", &conf.viscosity );
+            log_d("viscosity = %lf", conf.viscosity);
         }
         else if( !_strncmp( buf, "rho ") ) {
             sscanf( buf, "%*s %lf", &conf.rho );
+            log_d("rho = %lf", conf.rho);
         }
         else if( !_strncmp( buf, "v_inf_x ") ) {
             sscanf( buf, "%*s %lf", &(conf.v_inf[0]) );
+            log_d("v_inf_x = %lf", conf.v_inf[0]);
         }
         else if( !_strncmp( buf, "v_inf_y ") ) {
             sscanf( buf, "%*s %lf", &(conf.v_inf[1]) );
+            log_d("v_inf_y = %lf", conf.v_inf[1]);
         }
         else if( !_strncmp( buf, "n_of_points ") ) {
             sscanf( buf, "%*s %zu", &conf.n_of_points );
