@@ -32,7 +32,10 @@ __constant__ TVars h_col_y;
 __constant__ TVars rho;
 __constant__ TVars rc_x;
 __constant__ TVars rc_y;
+
+#ifndef NO_TREE
 __constant__ float theta;
+#endif // NO_TREE
 
 //#include "kernel.cuh"
 static int save_matr( TVars** M, size_t size, char *name ) {
@@ -648,6 +651,8 @@ static void save_d(TVars *d, size_t size, int _step) {
     fclose( outfile );
 } //save_to_file
 
+
+#ifndef NO_TREE
 static void output_tree( tree_t *t, size_t depth, int current_step ) {
     char filename[64];
     snprintf(filename, sizeof(filename), "tree_%d.txt", current_step);
@@ -941,6 +946,7 @@ static int build_tree( Vortex *pos, size_t s, float4 *leaves_params, uint8_t *is
     log_d("finish tree_building");
     return 0;
 }
+#endif // NO_TREE
 
 int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, tPanel *panels) {
     log_d("speed");
@@ -949,13 +955,13 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
     cudaDeviceSynchronize();
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(s / BLOCK_SIZE);
-    dim3 blocks_tree = dim3( BLOCK_SIZE );
     PVortex * VEL = NULL;
     PVortex * VELLL = NULL;
     Vortex *POS = NULL;
 
     log_d( "s = %zu", s );
 
+#ifndef NO_TREE
     static float4 *leaves_params = NULL;
     static uint8_t *is_fast_lists = NULL;
     static float2 *rc = NULL;
@@ -976,10 +982,15 @@ int Speed(Vortex *pos, TVctr *v_inf, size_t s, PVortex *v, TVars *d, TVars nu, t
         }
         log_i("tree_time = %f", stop_timer( start_tree, stop_tree ));
     }
+#endif // NO_TREE
 
     cudaEvent_t start_convective = 0, stop_convective = 0;
     start_timer( &start_convective, &stop_convective );
-    shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d, leaves_params, is_fast_lists, conf.tree_depth - 1, rc);
+    shared_Kernel <<< blocks, threads >>> (pos, v_inf, s, v, d
+#ifndef NO_TREE
+            , leaves_params, is_fast_lists, conf.tree_depth - 1, rc
+#endif // NO_TREE
+            );
 //	simple_Kernel <<< blocks, threads >>> (pos, v_inf, *n, v);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
@@ -1207,7 +1218,9 @@ int init_device_conf_values() {
     if( cuda_safe( cudaMemcpyToSymbol( rho, &conf.rho, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( rc_x, &conf.rc_x, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( rc_y, &conf.rc_y, sizeof(TVars) ) ) ) return 1;
+#ifndef NO_TREE
     if( cuda_safe( cudaMemcpyToSymbol( theta, &conf.theta, sizeof(float) ) ) ) return 1;
+#endif // NO_TREE
     return 0;
 }
 

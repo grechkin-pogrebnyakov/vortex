@@ -7,8 +7,9 @@ INCL_DIR=./include
 CUDA_INCL_DIR=/usr/local/cuda/include
 CUDA_LIB_DIR=/usr/local/cuda/lib64
 OPTIMIZATION=$(if $(DEBUG),-O0 -g,-O2)
-CFLAGS=-c $(OPTIMIZATION) -I$(INCL_DIR) -I$(CUDA_INCL_DIR) -std=gnu99 -Wno-unused-result -Werror
-CUFLAGS=-dc $(OPTIMIZATION) -I$(INCL_DIR) -w
+TREE=$(if $(NO_TREE), -DNO_TREE, )
+CFLAGS=-c $(OPTIMIZATION) -I$(INCL_DIR) -I$(CUDA_INCL_DIR) $(TREE) -std=gnu99 -Wno-unused-result -Werror
+CUFLAGS=-dc $(OPTIMIZATION) -I$(INCL_DIR) $(TREE) -w
 COMPUTE=$(if $(compute),$(compute),20)
 SM=$(if $(sm),$(sm),20)
 GENCODE=-gencode arch=compute_$(COMPUTE),code=compute_$(COMPUTE) -gencode arch=compute_$(COMPUTE),code=sm_$(SM)

@@ -53,10 +53,6 @@ static int read_config( const char *fname ) {
             sscanf( buf, "%*s %zu", &conf.saving_step );
             log_d("saving_step = %zu", conf.saving_step);
         }
-        else if( !_strncmp( buf, "tree_depth ") ) {
-            sscanf( buf, "%*s %zu", &conf.tree_depth );
-            log_d("tree_depth = %zu", conf.tree_depth);
-        }
         else if( !_strncmp( buf, "dt ") ) {
             sscanf( buf, "%*s %lf", &conf.dt );
             log_d("dt = %lf", conf.dt);
@@ -136,9 +132,15 @@ static int read_config( const char *fname ) {
         else if( !_strncmp( buf, "max_ve_g ") ) {
             sscanf( buf, "%*s %lf", &conf.max_ve_g );
         }
+#ifndef NO_TREE
+        else if( !_strncmp( buf, "tree_depth ") ) {
+            sscanf( buf, "%*s %zu", &conf.tree_depth );
+            log_d("tree_depth = %zu", conf.tree_depth);
+        }
         else if( !_strncmp( buf, "theta ") ) {
             sscanf( buf, "%*s %f", &conf.theta );
         }
+#endif // NO_TREE
     }
     fclose( conf_f );
     return 0;

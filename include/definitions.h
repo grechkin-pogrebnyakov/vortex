@@ -38,6 +38,7 @@
 typedef double TVars;									    // тип данных, применяемый для ВСЕХ чисел с плавающей точкой
 typedef TVars TVctr[2];								    // вектор
 
+#ifndef NO_TREE
 // тип данных ячеек дерева
 typedef struct node_t {
     float x_min, x_max, y_min, y_max;
@@ -54,12 +55,17 @@ typedef struct node_t {
     float2 rc;
     float2 dim;
 } tree_t;
+#endif // NO_TREE
 
 // тип данных ВЭ
 typedef struct Vortex{
     TVars r[2];         //положение
     TVars g;        //интенсивность
+
+#ifndef NO_TREE
     unsigned int tree_id; // id of tree block
+#endif // NO_TREE
+
 } Vortex;//POS
 
 // тип данных данных скоростей ВЭ

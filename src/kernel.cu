@@ -31,6 +31,8 @@ extern __constant__ TVars h_col_y;
 extern __constant__ TVars rho;
 extern __constant__ TVars rc_x;
 extern __constant__ TVars rc_y;
+
+#ifndef NO_TREE
 extern __constant__ float theta;
 
 #define SET_DEFAULT_ARR_VAL( __index ) \
@@ -756,12 +758,18 @@ template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 24>( node_t*, node
 template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 25>( node_t*, node_t*, float4*, uint8_t*, float2* );
 template __global__ void find_near_and_far_leaves<BLOCK_SIZE, 26>( node_t*, node_t*, float4*, uint8_t*, float2* );
 
+#endif // NO_TREE
+
 __global__ void zero_Kernel( float *randoms, Vortex *pos, int s ) {
     int ind = blockIdx.x * blockDim.x + threadIdx.x;
     pos[s+ind].r[0]=(2.0e+5)*randoms[ind]+2.0e+5;
     pos[s+ind].r[1]=(2.0e+5)*randoms[ind]+2.0e+5;
     pos[s+ind].g = 0.0;
+
+#ifndef NO_TREE
     pos[s+ind].tree_id = 0;
+#endif // NO_TREE
+
 }
 
 __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size_t n_birth_BLOCK_S, TVars *R_p, tPanel *panels) {
@@ -837,8 +845,8 @@ __global__ void Right_part_Kernel(Vortex *pos, TVctr *V_inf, size_t n_vort, size
 __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t n_birth_BLOCK_S, TVars * M, TVars *d_g, TVars *R_p, tPanel *panel) {
 	int i= blockIdx.x * blockDim.x + threadIdx.x;
 	int i_next = panel[i].n_of_rpanel;
-	register TVars g;
-	register TVars g_next;
+	register TVars g = 0.0;
+	register TVars g_next = 0.0;
 	for (size_t j = 0; j < n_birth; ++j) {
 //		pos_N.g += M[(pp+1)*i+j]*R_p[j];
             g += M[(n_birth_BLOCK_S + 1) * i + j] * R_p[j];
@@ -851,7 +859,7 @@ __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t 
 //		pos[i+n_vort].r[0] = pos_N.r[0];
 //		pos[i+n_vort].r[1] = pos_N.r[1];
 
-		//pos[i+n_vort].r[0] = R_birth_x(panel, i);
+		//pos[i + n_vort].r[0] = R_birth_x(panel, i);
         pos[i + n_vort].r[0] = panel[i].right[0] + panel[i].norm[0] * 1e-7;
 		//pos[i+n_vort].r[1] = R_birth_y(panel, i);
         pos[i + n_vort].r[1] = panel[i].right[1] + panel[i].norm[1] * 1e-7;
@@ -860,7 +868,11 @@ __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t 
 	}
 }
 
-__global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d, float4 *leaves_params, uint8_t *is_fast_list, size_t last_level, float2 *rc) {
+__global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVars *d
+#ifndef NO_TREE
+        , float4 *leaves_params, uint8_t *is_fast_list, size_t last_level, float2 *rc
+#endif // NO_TREE
+        ) {
     int i= blockIdx.x * blockDim.x + threadIdx.x;
     float y0 = 0.0f, y1 = 0.0f;
 //	TVars dist2;
@@ -874,21 +886,23 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     // координаты расчётной точки
     float a0 = 0.0f, a1 = 0.0f;
 
-    size_t count_of_leaves = 0;
-    float2 cur_rc;
 
     // координаты воздействующей точки
     __shared__ float b_sh_0 [BLOCK_SIZE];
     __shared__ float b_sh_1 [BLOCK_SIZE];
     // интенсивность воздействующей точки
     __shared__ float g [BLOCK_SIZE];
+
+    a0 = (float)pos[i].r[0];
+    a1 = (float)pos[i].r[1];
+
+#ifndef NO_TREE
+    size_t count_of_leaves = 0;
+    float2 cur_rc;
     const unsigned sss = 1 << 16;
     uint8_t local_is_fast_list[sss];
 
     __shared__ unsigned tree_id_sh[BLOCK_SIZE];
-
-    a0 = (float)pos[i].r[0];
-    a1 = (float)pos[i].r[1];
 
     unsigned tree_id = pos[i].tree_id;
 
@@ -899,6 +913,7 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
         leaves_params += tree_id;
         memcpy(local_is_fast_list, is_fast_list, count_of_leaves);
     }
+#endif // NO_TREE
 
     d_1 = 1e+5f;
     d_2 = 1e+5f;
@@ -908,13 +923,19 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
         b_sh_0[threadIdx.x] = (float)pos[threadIdx.x+f].r[0];
         b_sh_1[threadIdx.x] = (float)pos[threadIdx.x+f].r[1];
         g[threadIdx.x] = (float)pos[threadIdx.x+f].g;
+
+#ifndef NO_TREE
         tree_id_sh[threadIdx.x] = pos[threadIdx.x].tree_id;
+#endif // NO_TREE
+
         __syncthreads();
         for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
             if( j + f == i )
                 continue;
+#ifndef NO_TREE
             if( leaves_params && local_is_fast_list[tree_id_sh[j]] )
                 continue;
+#endif // NO_TREE
             dist2 = Ro2f(a0, a1, b_sh_0[j], b_sh_1[j]);
             // dist2 = (a0 - b_sh_0[j]) * (a0 - b_sh_0[j]) + (a1 - b_sh_1[j]) * (a1 - b_sh_1[j]);
             if (d_3 > dist2) {
@@ -944,15 +965,16 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     V[i].v[0] = (TVars)( y0 / (2 * M_PI) + (*V_inf)[0] );
     V[i].v[1] = (TVars)( y1 / (2 * M_PI) + (*V_inf)[1] );
 
+#ifndef NO_TREE
     if( leaves_params ) {
         float2 delta_r = make_float2(a0 - cur_rc.x, a1 - cur_rc.y);
         float2 fast_vel = make_float2(leaves_params->x + leaves_params->z * delta_r.x + leaves_params->w * delta_r.y,
                                       leaves_params->y + leaves_params->w * delta_r.x - leaves_params->z * delta_r.y);
-
-
         V[i].v[0] += fast_vel.x;
         V[i].v[1] += fast_vel.y;
     }
+#endif // NO_TREE
+
 //    for( int k = 0; k < 2; ++k )
 //      V[i].v[k] =  (*V_inf)[k];
     __syncthreads();
@@ -1335,8 +1357,10 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 	//если вихрь вне габ. прямоугольника - возвращаем false
 	hit = !( ((x1<-0.5) && (x2<-0.5)) ||   
 			 ((x1>0.5) && (x2>0.5)) ||
-			 ((y1<-0.01) && (y2<-0.01)) ||
-			 ((y1>0.01) && (y2>0.01))   );
+//			 ((y1<-0.01) && (y2<-0.01)) ||
+//			 ((y1>0.01) && (y2>0.01))   );
+			 ((y1<-0.5) && (y2<-0.5)) ||
+			 ((y1>0.5) && (y2>0.5))   );
   
 	//если внутри габ. прямоугольника - проводим контроль
 	if (hit)
