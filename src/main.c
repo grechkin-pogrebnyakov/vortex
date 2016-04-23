@@ -37,6 +37,22 @@ FILE *log_file = NULL;
 FILE *timings_file = NULL;
 cudaError_t cuda_error = cudaSuccess;
 
+#define LOAD_UINT_CONF_PARAM( param ) \
+    else if( !_strncmp( buf, #param " ") ) { \
+        sscanf( buf, "%*s %zu", &conf.param ); \
+        log_d(#param " = %zu", conf.param); \
+    }
+#define LOAD_FLOAT_CONF_PARAM( param ) \
+    else if( !_strncmp( buf, #param " ") ) { \
+        sscanf( buf, "%*s %lf", &conf.param ); \
+        log_d(#param " = %lf", conf.param); \
+    }
+#define LOAD_BOOL_CONF_PARAM( param ) \
+    else if( !_strncmp( buf, #param " ") ) { \
+        sscanf( buf, "%*s %u", &conf.param ); \
+        log_d(#param " = %u", conf.param); \
+    }
+
 static int read_config( const char *fname ) {
     FILE *conf_f = fopen( fname, "r" );
     if ( !conf_f ) {
@@ -45,101 +61,39 @@ static int read_config( const char *fname ) {
     }
     char buf[236];
     while ( fgets( buf, sizeof(buf), conf_f ) ) {
-        if( !_strncmp( buf, "steps " ) ) {
-            sscanf( buf, "%*s %zu", &conf.steps);
-            log_d("steps = %zu", conf.steps);
-        }
-        else if( !_strncmp( buf, "saving_step ") ) {
-            sscanf( buf, "%*s %zu", &conf.saving_step );
-            log_d("saving_step = %zu", conf.saving_step);
-        }
-        else if( !_strncmp( buf, "dt ") ) {
-            sscanf( buf, "%*s %lf", &conf.dt );
-            log_d("dt = %lf", conf.dt);
-        }
-        else if( !_strncmp( buf, "v_inf_incr_steps ") ) {
-            sscanf( buf, "%*s %zu", &conf.v_inf_incr_steps );
-            log_d("v_inf_incr_steps = %zu", conf.v_inf_incr_steps);
-        }
-        else if( !_strncmp( buf, "increment_step ") ) {
-            sscanf( buf, "%*s %zu", &conf.inc_step );
-            log_d("increment_step = %zu", conf.inc_step);
-        }
-        else if( !_strncmp( buf, "viscosity ") ) {
-            sscanf( buf, "%*s %lf", &conf.viscosity );
-            log_d("viscosity = %lf", conf.viscosity);
-        }
-        else if( !_strncmp( buf, "rho ") ) {
-            sscanf( buf, "%*s %lf", &conf.rho );
-            log_d("rho = %lf", conf.rho);
-        }
-        else if( !_strncmp( buf, "v_inf_x ") ) {
-            sscanf( buf, "%*s %lf", &(conf.v_inf[0]) );
-            log_d("v_inf_x = %lf", conf.v_inf[0]);
-        }
-        else if( !_strncmp( buf, "v_inf_y ") ) {
-            sscanf( buf, "%*s %lf", &(conf.v_inf[1]) );
-            log_d("v_inf_y = %lf", conf.v_inf[1]);
-        }
-        else if( !_strncmp( buf, "n_of_points ") ) {
-            sscanf( buf, "%*s %zu", &conf.n_of_points );
-        }
-        else if( !_strncmp( buf, "x_max ") ) {
-            sscanf( buf, "%*s %lf", &conf.x_max );
-        }
-        else if( !_strncmp( buf, "x_min ") ) {
-            sscanf( buf, "%*s %lf", &conf.x_min );
-        }
-        else if( !_strncmp( buf, "y_max ") ) {
-            sscanf( buf, "%*s %lf", &conf.y_max );
-        }
-        else if( !_strncmp( buf, "y_min ") ) {
-            sscanf( buf, "%*s %lf", &conf.y_min );
-        }
-        else if( !_strncmp( buf, "ve_size ") ) {
-            sscanf( buf, "%*s %f", &conf.ve_size );
-        }
-        else if( !_strncmp( buf, "n_col ") ) {
-            sscanf( buf, "%*s %zu", &conf.n_col );
-        }
-        else if( !_strncmp( buf, "h_col_x ") ) {
-            sscanf( buf, "%*s %zu", &conf.h_col_x );
-        }
-        else if( !_strncmp( buf, "h_col_y ") ) {
-            sscanf( buf, "%*s %zu", &conf.h_col_y );
-        }
-        else if( !_strncmp( buf, "rc_x ") ) {
-            sscanf( buf, "%*s %lf", &(conf.rc_x) );
-        }
-        else if( !_strncmp( buf, "rc_y ") ) {
-            sscanf( buf, "%*s %lf", &(conf.rc_y) );
-        }
-        else if( !_strncmp( buf, "pr_file ") ) {
+        if( !_strncmp( buf, "pr_file ") ) {
             sscanf( buf, "%*s %s", conf.pr_file );
         }
         else if( !_strncmp( buf, "timings_file ") ) {
             sscanf( buf, "%*s %s", conf.timings_file );
         }
-        else if( !_strncmp( buf, "r_col_different_signs_ve ") ) {
-            sscanf( buf, "%*s %lf", &conf.r_col_diff_sign );
-        }
-        else if( !_strncmp( buf, "r_col_same_sign_ve ") ) {
-            sscanf( buf, "%*s %lf", &conf.r_col_same_sign );
-        }
-        else if( !_strncmp( buf, "matrix_load ") ) {
-            sscanf( buf, "%*s %u", &conf.matrix_load );
-        }
-        else if( !_strncmp( buf, "max_ve_g ") ) {
-            sscanf( buf, "%*s %lf", &conf.max_ve_g );
-        }
+        LOAD_UINT_CONF_PARAM(steps)
+        LOAD_UINT_CONF_PARAM(saving_step)
+        LOAD_FLOAT_CONF_PARAM(dt)
+        LOAD_UINT_CONF_PARAM(v_inf_incr_steps)
+        LOAD_UINT_CONF_PARAM(inc_step)
+        LOAD_FLOAT_CONF_PARAM(viscosity)
+        LOAD_FLOAT_CONF_PARAM(rho)
+        LOAD_FLOAT_CONF_PARAM(v_inf_x)
+        LOAD_FLOAT_CONF_PARAM(v_inf_y)
+        LOAD_UINT_CONF_PARAM(n_of_points)
+        LOAD_FLOAT_CONF_PARAM(x_max)
+        LOAD_FLOAT_CONF_PARAM(x_min)
+        LOAD_FLOAT_CONF_PARAM(y_max)
+        LOAD_FLOAT_CONF_PARAM(y_min)
+        LOAD_FLOAT_CONF_PARAM(ve_size)
+        LOAD_UINT_CONF_PARAM(n_col)
+        LOAD_FLOAT_CONF_PARAM(h_col_x)
+        LOAD_FLOAT_CONF_PARAM(h_col_y)
+        LOAD_FLOAT_CONF_PARAM(rc_x)
+        LOAD_FLOAT_CONF_PARAM(rc_y)
+        LOAD_FLOAT_CONF_PARAM(r_col_diff_sign)
+        LOAD_FLOAT_CONF_PARAM(r_col_same_sign)
+        LOAD_BOOL_CONF_PARAM(matrix_load)
+        LOAD_FLOAT_CONF_PARAM(max_ve_g)
 #ifndef NO_TREE
-        else if( !_strncmp( buf, "tree_depth ") ) {
-            sscanf( buf, "%*s %zu", &conf.tree_depth );
-            log_d("tree_depth = %zu", conf.tree_depth);
-        }
-        else if( !_strncmp( buf, "theta ") ) {
-            sscanf( buf, "%*s %f", &conf.theta );
-        }
+        LOAD_UINT_CONF_PARAM(tree_depth)
+        LOAD_FLOAT_CONF_PARAM(theta)
 #endif // NO_TREE
     }
     fclose( conf_f );
@@ -384,7 +338,8 @@ static int create_dir(const char *dir_name) {
     } else if (!S_ISDIR(st.st_mode)) {
         log_e("%s is not directory", dir_name);
         return -1;
-    }
+    } else
+        log_d("directory %s exists", dir_name);
     return 0;
 }
 
@@ -422,14 +377,14 @@ int main( int argc, char **argv ) {
         return 1;
     log_d("ok read params");
 
+    set_log_file();
+
     if ( read_config( conf.config_file ) )
         return 1;
     log_d("ok read config");
 
     if ( create_output_dirs() )
         return 1;
-
-    set_log_file();
 
     cudaDeviceReset();
 
@@ -499,6 +454,7 @@ int main( int argc, char **argv ) {
     F_p_host.v[1] = 0.0;
 
     // выделение памяти и копирование на device
+    TVctr v_inf = {conf.v_inf_x, conf.v_inf_y};
 
     cuda_safe( cudaMalloc( (void**)&V_inf_device, sizeof(TVctr) ) );
     cuda_safe( cudaMalloc( (void**)&d_g_device, sizeof(TVars) ) );
@@ -506,7 +462,7 @@ int main( int argc, char **argv ) {
     cuda_safe( cudaMalloc( (void**)&F_p_device, sizeof(PVortex) ) );
     cuda_safe( cudaMalloc( (void**)&M_device, (birth+1) * (birth+1) * sizeof(TVars) ) );
     cuda_safe( cudaMalloc( (void**)&panels_device, birth * sizeof(tPanel) ) );
-    cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemcpy( V_inf_device, &v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
     cuda_safe( cudaMemcpy( d_g_device, &TVarsZero, sizeof(TVars), cudaMemcpyHostToDevice ) );
     cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host, sizeof(TVars), cudaMemcpyHostToDevice ) );
     cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
@@ -530,18 +486,23 @@ int main( int argc, char **argv ) {
     float step_time = 0.0;
     cudaEvent_t start = 0, stop = 0;
 //------------------------------------------------------------------------------------------
-    TVars d_V_inf = conf.v_inf[0] / (TVars)conf.v_inf_incr_steps;
-    log_d( "delta V = %lf", d_V_inf );
-    conf.v_inf[0] = 0.0;
-    cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+    TVctr d_V_inf = {0.0, 0.0};
+    if( conf.v_inf_incr_steps ) {
+        d_V_inf[0] = conf.v_inf_x / (TVars)conf.v_inf_incr_steps;
+        d_V_inf[1] = conf.v_inf_y / (TVars)conf.v_inf_incr_steps;
+        log_d( "delta V = (%lf, %lf)", d_V_inf[0], d_V_inf[1] );
+        v_inf[0] = v_inf[1] = 0.0;
+        cuda_safe( cudaMemcpy( V_inf_device, &v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+    }
 
     // цикл шагов выполнения расчётов
     for (current_step = 0; current_step < conf.steps; current_step++) {
         log_d( "step %d", current_step );
         if (current_step < conf.v_inf_incr_steps) {
-            conf.v_inf[0] += d_V_inf;
-            cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
-            log_d( "increase v_inf = %lf", conf.v_inf[0] );
+            v_inf[0] += d_V_inf[0];
+            v_inf[1] += d_V_inf[1];
+            cuda_safe( cudaMemcpy( V_inf_device, &v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+            log_d( "increase v_inf = (%lf, %lf)", v_inf[0], v_inf[1] );
         }
         // количество ВЭ на текущем шаге, увеличенное до кратности BLOCK_SIZE
         size_t s = 0;

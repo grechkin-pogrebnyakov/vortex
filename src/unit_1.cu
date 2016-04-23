@@ -18,8 +18,8 @@ extern int current_step;
 
 __constant__ TVars dt;
 __constant__ size_t quant;
-__constant__ float ve_size;
-__constant__ float ve_size2;
+__constant__ TVars ve_size;
+__constant__ TVars ve_size2;
 __constant__ TVars r_col_diff_sign2, r_col_same_sign2;
 __constant__ TVars max_ve_g;
 __constant__ size_t n_of_points;
@@ -1200,9 +1200,9 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
 int init_device_conf_values() {
     if( cuda_safe( cudaMemcpyToSymbol( dt, &conf.dt, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( quant, &conf.birth_quant, sizeof(size_t) ) ) ) return 1;
-    float ve_s2 = conf.ve_size * conf.ve_size;
+    TVars ve_s2 = conf.ve_size * conf.ve_size;
     if( cuda_safe( cudaMemcpyToSymbol( ve_size, &conf.ve_size, sizeof(TVars) ) ) ) return 1;
-    if( cuda_safe( cudaMemcpyToSymbol( ve_size2, &ve_s2, sizeof(float) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( ve_size2, &ve_s2, sizeof(TVars) ) ) ) return 1;
     TVars r_col_diff2 = conf.r_col_diff_sign * conf.r_col_diff_sign * ve_s2;
     TVars r_col_same2 = conf.r_col_same_sign * conf.r_col_same_sign * ve_s2;
     if( cuda_safe( cudaMemcpyToSymbol( r_col_diff_sign2, &r_col_diff2, sizeof(TVars) ) ) ) return 1;
@@ -1219,7 +1219,8 @@ int init_device_conf_values() {
     if( cuda_safe( cudaMemcpyToSymbol( rc_x, &conf.rc_x, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( rc_y, &conf.rc_y, sizeof(TVars) ) ) ) return 1;
 #ifndef NO_TREE
-    if( cuda_safe( cudaMemcpyToSymbol( theta, &conf.theta, sizeof(float) ) ) ) return 1;
+    float h_theta = (float)conf.theta;
+    if( cuda_safe( cudaMemcpyToSymbol( theta, &h_theta, sizeof(float) ) ) ) return 1;
 #endif // NO_TREE
     return 0;
 }

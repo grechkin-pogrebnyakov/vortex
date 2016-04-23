@@ -16,8 +16,8 @@
 
 extern __constant__ TVars dt;
 extern __constant__ size_t quant;
-extern __constant__ float ve_size;
-extern __constant__ float ve_size2;
+extern __constant__ TVars ve_size;
+extern __constant__ TVars ve_size2;
 extern __constant__ TVars r_col_same_sign2;
 extern __constant__ TVars r_col_diff_sign2;
 extern __constant__ TVars max_ve_g;
