@@ -126,8 +126,11 @@ struct conf_t {
     char config_file[256];
     uint8_t log_level;
     char timings_file[256];
+    char kadr_file[256];
+#ifndef NO_TREE
     size_t tree_depth;
     TVars theta;
+#endif // NO_TREE
 };
 
 #endif // DEFINITIONS_H_

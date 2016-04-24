@@ -22,6 +22,10 @@ TVars *matr_creation(tPanel *panels, size_t s, size_t birth);
 // Загрузка матрицы
 TVars   *load_matrix(size_t *p);
 
+// выделение памяти под массивы
+int allocate_arrays(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t size);
+
+int randomize_tail(Vortex **p_dev, size_t new_size, size_t increased);
 // расширение массивов
 int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size);
 

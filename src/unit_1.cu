@@ -449,6 +449,58 @@ TVars   *load_matrix(size_t *p) {
     return MM;
 }
 
+int allocate_arrays(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t size) {
+    if ( !p_host || !p_dev || !v_host || !v_dev || !d_dev || !size ) {
+        log_e( "wrong parameters" );
+        return 2;
+    }
+    *p_host = (Vortex*)malloc( sizeof(Vortex) * size );
+    memset( *p_host, 0, sizeof(Vortex) * size );
+    *v_host = (PVortex*)malloc( sizeof(PVortex) * size );
+    memset( *v_host, 0, sizeof(PVortex) * size );
+    if( cuda_safe( cudaMalloc( (void**)p_dev, size * sizeof(Vortex) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemset( (void*)(*p_dev), 0, size * sizeof(Vortex) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMalloc( (void**)d_dev, size * sizeof(TVars) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemset( (void*)(*d_dev), 0, size * sizeof(TVars) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMalloc( (void**)v_dev, size  * sizeof(PVortex) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemset( (void*)(*v_dev), 0, size  * sizeof(PVortex) ) ) ) {
+        return 1;
+    }
+    return 0;
+}
+
+int randomize_tail(Vortex **p_dev, size_t new_size, size_t increased) {
+    float *rnd_dev = NULL, *rnd_host = NULL;
+    rnd_host = (float*)malloc( sizeof(float) * increased );
+    for (int i = 0; i < increased; ++i) {
+        rnd_host[i] = (float)rand();
+    }
+    if( cuda_safe( cudaMalloc( (void**)&rnd_dev, increased * sizeof(float) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemcpy( rnd_dev, rnd_host, increased * sizeof(float), cudaMemcpyHostToDevice ) ) ) {
+        return 1;
+    }
+    dim3 threads = dim3(BLOCK_SIZE);
+    dim3 blocks  = dim3(increased/BLOCK_SIZE);
+    // generate random numbers
+    zero_Kernel <<< blocks, threads >>> (rnd_dev, *p_dev, new_size - increased );
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }
+}
+
 int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size) {
     if ( !p_host || !p_dev || !v_host || !v_dev || !d_dev || !size ) {
         log_e( "wrong parameters" );
@@ -485,47 +537,16 @@ int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex *
     }
     else if ( !(*p_host) && !(*p_dev) && !(*v_host) && !(*v_dev) && !(*d_dev) ) {
         *size = conf.inc_step;
-        *p_host = (Vortex*)malloc( sizeof(Vortex) * (*size) );
-        memset( *p_host, 0, sizeof(Vortex) * (*size) );
-        *v_host = (PVortex*)malloc( sizeof(PVortex) * (*size) );
-        memset( *v_host, 0, sizeof(PVortex) * (*size) );
-        if( cuda_safe( cudaMalloc( (void**)p_dev, *size * sizeof(Vortex) ) ) ) {
+        if( allocate_arrays( p_host, p_dev, v_host, v_dev, d_dev, *size ) )
             return 1;
-        }
-        if( cuda_safe( cudaMalloc( (void**)d_dev, *size * sizeof(TVars) ) ) ) {
-            return 1;
-        }
-        if( cuda_safe( cudaMalloc( (void**)v_dev , *size  * sizeof(PVortex) ) ) ) {
-            return 1;
-        }
     }
     else {
         log_e( "wrong parameters" );
         return 2;
     }
+    if( randomize_tail( p_dev, *size, conf.inc_step ) )
+        return 1;
 
-    srand((unsigned int)time(NULL));
-    float *rnd_dev = NULL, *rnd_host = NULL;
-    rnd_host = (float*)malloc( sizeof(float) * conf.inc_step );
-    for (int i = 0; i < conf.inc_step; ++i) {
-        rnd_host[i] = (float)rand();
-    }
-    if( cuda_safe( cudaMalloc( (void**)&rnd_dev, conf.inc_step * sizeof(float) ) ) ) {
-        return 1;
-    }
-    if( cuda_safe( cudaMemcpy( rnd_dev, rnd_host, conf.inc_step * sizeof(float), cudaMemcpyHostToDevice ) ) ) {
-        return 1;
-    }
-    dim3 threads = dim3(BLOCK_SIZE);
-    dim3 blocks  = dim3(conf.inc_step/BLOCK_SIZE);
-    // generate random numbers
-    zero_Kernel <<< blocks, threads >>> (rnd_dev, *p_dev, *size - conf.inc_step );
-    cudaDeviceSynchronize();
-    //	cuerr=cudaMemcpy ( p_host , p_dev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-    //	save_to_file_size(1);
-    if( cuda_safe( cudaGetLastError() ) ) {
-        return 1;
-    }
     return 0;
 }
 
@@ -1198,6 +1219,7 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
 }
 
 int init_device_conf_values() {
+    srand((unsigned int)time(NULL));
     if( cuda_safe( cudaMemcpyToSymbol( dt, &conf.dt, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( quant, &conf.birth_quant, sizeof(size_t) ) ) ) return 1;
     TVars ve_s2 = conf.ve_size * conf.ve_size;

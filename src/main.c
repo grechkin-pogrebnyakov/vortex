@@ -63,9 +63,15 @@ static int read_config( const char *fname ) {
     while ( fgets( buf, sizeof(buf), conf_f ) ) {
         if( !_strncmp( buf, "pr_file ") ) {
             sscanf( buf, "%*s %s", conf.pr_file );
+            log_d("pr_file = %s", conf.pr_file);
         }
         else if( !_strncmp( buf, "timings_file ") ) {
             sscanf( buf, "%*s %s", conf.timings_file );
+            log_d("timings_file = %s", conf.timings_file);
+        }
+        else if( !_strncmp( buf, "kadr_file ") ) {
+            sscanf( buf, "%*s %s", conf.kadr_file );
+            log_d("kadr_file = %s", conf.kadr_file);
         }
         LOAD_UINT_CONF_PARAM(steps)
         LOAD_UINT_CONF_PARAM(saving_step)
@@ -176,6 +182,21 @@ static void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
         fprintf( outfile, "%zu %lf %lf %lf %lf %lf %lf %lf\n", i, Psp.eps, POS[i].r[0], POS[i].r[1], 0.0, 0.0, 0.0, POS[i].g );
     }//for i
     fclose(outfile);
+} //save_to_file
+
+static void load_from_file(char *fname, Vortex **POS, size_t *size) {
+    FILE *infile = fopen(fname, "r");
+    if( !infile ) {
+        log_e("error file opening %s : %s", fname, strerror(errno) );
+        return;
+    }
+    log_i( "load from file %s", fname );
+    fscanf( infile, "%zu\n", size );
+    *POS = (Vortex*)malloc((*size) * sizeof(Vortex));
+    for (size_t i = 0; i < (*size); ++i) {
+        fscanf( infile, "%*u %*f %lf %lf %*f %*f %*f %lf\n", &((*POS)[i].r[0]), &((*POS)[i].r[1]), &((*POS)[i].g) );
+    }//for i
+    fclose(infile);
 } //save_to_file
 
 void save_forces(PVortex F_p, TVars M, int step) {
@@ -377,14 +398,14 @@ int main( int argc, char **argv ) {
         return 1;
     log_d("ok read params");
 
-    set_log_file();
-
     if ( read_config( conf.config_file ) )
         return 1;
     log_d("ok read config");
 
     if ( create_output_dirs() )
         return 1;
+
+    set_log_file();
 
     cudaDeviceReset();
 
@@ -430,6 +451,7 @@ int main( int argc, char **argv ) {
 
 // размер массива ВЭ
     size = 0;
+
     Psp.eps = 0.008;
 
 //-----------------------------------------------------------------------------------------------------------------------------
@@ -473,14 +495,27 @@ int main( int argc, char **argv ) {
     free( M );
     log_i( "dt = %lf", conf.dt );
 
-    // увеличение массива ВЭ на INCR_STEP элементов
-    err = incr_vort_quant( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, &size );
-    if (err != 0)
-    {
-        log_e( "Increase ERROR!" );
-        mem_clear();
-        return 1;
+    if( *(conf.kadr_file) ) {
+        Vortex *tmp = NULL;
+        load_from_file(conf.kadr_file, &tmp, &n);
+        float rashirenie = (float)(n) / (float)(conf.inc_step);
+        size = (size_t)( conf.inc_step * ceil(rashirenie) );
+        allocate_arrays( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, size );
+        randomize_tail( &POS_device, size, size );
+        memcpy( POS_host, tmp, n * sizeof(Vortex) );
+        cuda_safe( cudaMemcpy( POS_device, POS_host, n * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+        free(tmp);
+    } else {
+        // увеличение массива ВЭ на INCR_STEP элементов
+        err = incr_vort_quant( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, &size );
+        if (err != 0)
+        {
+            log_e( "Increase ERROR!" );
+            mem_clear();
+            return 1;
+        }
     }
+
     float creation_time = 0.0;
     float speed_time = 0.0;
     float step_time = 0.0;
