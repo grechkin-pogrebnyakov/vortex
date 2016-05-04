@@ -1247,16 +1247,15 @@ int init_device_conf_values() {
     return 0;
 }
 
-int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v) {
+int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, unsigned n_contr) {
     log_d("velocity control");
-    size_t nummm = 500;
     TVars rash = 0.0;
     size_t birth = 0;
-    rash = (TVars)(nummm) / BLOCK_SIZE;
+    rash = (TVars)(n_contr) / BLOCK_SIZE;
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(birth / BLOCK_SIZE);
-    velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_v);
+    velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_contr);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;

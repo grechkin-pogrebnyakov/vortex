@@ -47,7 +47,7 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
 int init_device_conf_values();
 
 //
-int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v);
+int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, unsigned n_contr);
 
 #ifdef __cplusplus
 }

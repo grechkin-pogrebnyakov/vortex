@@ -975,8 +975,6 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     }
 #endif // NO_TREE
 
-//    for( int k = 0; k < 2; ++k )
-//      V[i].v[k] =  (*V_inf)[k];
     __syncthreads();
 }
 
@@ -1414,9 +1412,9 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 }//hitting
 
 
-__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v) {
-    int i= blockIdx.x * blockDim.x + threadIdx.x;
-if ( i < 500 ) {
+__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, unsigned n_contr) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+if ( i < n_contr ) {
         float y0 = 0.0f, y1 = 0.0f;
 //        TVars dist2;
         float mnog = 0.0f;
@@ -1447,12 +1445,8 @@ if ( i < 500 ) {
             }//j
             __syncthreads();
         }//f
-        V[i + (*n_v)].v[0] = ( (TVars)y0 )/(2*M_PI) + (*V_inf)[0];
-        V[i + (*n_v)].v[1] = ( (TVars)y1 )/(2*M_PI) + (*V_inf)[1];
+        V[i].v[0] = ( (TVars)y0 )/(2*M_PI) + (*V_inf)[0];
+        V[i].v[1] = ( (TVars)y1 )/(2*M_PI) + (*V_inf)[1];
 //        V[i].v[k] =  (*V_inf)[k];
-        __syncthreads();
-        if (i == 1) {
-            (*n_v) += 500;
-        }
     }
 }

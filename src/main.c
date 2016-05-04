@@ -467,10 +467,7 @@ int main( int argc, char **argv ) {
     cuda_safe( cudaMalloc( (void**)&V_contr_device, 500 * conf.saving_step * sizeof(PVortex) ) );
     cuda_safe( cudaMalloc( (void**)&Contr_points_device, 500 * sizeof(PVortex) ) );
     cuda_safe( cudaMemcpy( Contr_points_device, Contr_points_host, 500 * sizeof(PVortex), cudaMemcpyHostToDevice ) );
-    int v_n_host = 0;
-    int *v_n_device = NULL;
-    cuda_safe( cudaMalloc( (void**)&v_n_device, sizeof(int) ) );
-    cuda_safe( cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice ) );
+    PVortex *V_contr_tmp = NULL;
 
     F_p_host.v[0] = 0.0;
     F_p_host.v[1] = 0.0;
@@ -581,7 +578,7 @@ int main( int argc, char **argv ) {
 
 
             cuda_safe( cudaMemcpy( V_contr_host, V_contr_device, 500 * conf.saving_step * sizeof(PVortex), cudaMemcpyDeviceToHost ) );
-            cuda_safe( cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice ) );
+            V_contr_tmp = V_contr_device;
             save_contr_vels( Contr_points_host, V_contr_host, current_step );
 
 
@@ -589,7 +586,8 @@ int main( int argc, char **argv ) {
 
             save_to_file(POS_host, n, Psp, current_step);
         }// if saving_step
-        velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_device, v_n_device);
+        velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_tmp, 500);
+        V_contr_tmp += 500;
         if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
             log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", current_step, &F_p_host, F_p_device );
             mem_clear();
