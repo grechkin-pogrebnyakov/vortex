@@ -127,6 +127,7 @@ struct conf_t {
     uint8_t log_level;
     char timings_file[256];
     char kadr_file[256];
+    size_t n_of_second;
 #ifndef NO_TREE
     size_t tree_depth;
     TVars theta;

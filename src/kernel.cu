@@ -1373,14 +1373,14 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
         TVars r0=0, r1=0, r2=0, r3=0;
         bool hitt=false;
         for(int i=0; i<quant; ++i)
-		{ 
-			
+		{
+
 			r0=A*Panel[i].left[0] + B*Panel[i].left[1] + D;
             r1=A*Panel[i].right[0] + B*Panel[i].right[1] + D;
 			if (fabs(r0)<porog_r) r0=0.0;
 			if (fabs(r1)<porog_r) r1=0.0;
             hitt=false;
-            if (r0*r1<=0) 
+            if (r0*r1<=0)
 				hitt=true;
             if (hitt)
             {
@@ -1390,25 +1390,25 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 				r2=A1*x1+B1*y1+D1;
                 r3=A1*x2+B1*y2+D1;
                 if (fabs(r2)<porog_r) r2=0.0;
-			    if (fabs(r3)<porog_r) r3=0.0;
-				
+				if (fabs(r3)<porog_r) r3=0.0;
+
 				if (r2*r3<=0)
 				{
 					hit=true;// пробила!
                     TVars d2=(x2-(B*D1-D*B1)/(A*B1-B*A1))*(x2-(B*D1-D*B1)/(A*B1-B*A1))+(y2-(A1*D-D1*A)/(A*B1-B*A1))*(y2-(A1*D-D1*A)/(A*B1-B*A1)); 
-					if (d2<minDist) 
+					if (d2<minDist)
 					{
 						minDist=d2;
 						minN=i;
 					}//if d2
 				}//if r2*r3
-			}//if hitt                              
+			}//if hitt
 		}//for i=0;i<Profile[prf].n
 	}; //if hit
 
 	hitpan[0]=minN;
 	return hit;
-	
+
 }//hitting
 
 

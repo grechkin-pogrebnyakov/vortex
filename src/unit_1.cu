@@ -1247,7 +1247,7 @@ int init_device_conf_values() {
     return 0;
 }
 
-int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, unsigned n_contr) {
+int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, PVortex *Contr_points, PVortex *V, size_t n_contr) {
     log_d("velocity control");
     TVars rash = 0.0;
     size_t birth = 0;
@@ -1258,6 +1258,14 @@ int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PV
     velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_contr);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }
+    return 0;
+}
+
+int second_speed(Vortex *pos, TVctr *V_inf, size_t n, PVortex *second_pos, PVortex *v_second, size_t n_second) {
+    log_d("second_speed");
+    if( velocity_control( pos, V_inf, n, second_pos, v_second, n_second ) ) {
         return 1;
     }
     return 0;

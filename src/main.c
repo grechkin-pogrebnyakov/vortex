@@ -33,25 +33,33 @@ PVortex     *F_p_device = NULL;                 // главный вектор �
 TVars       *Momentum_device = NULL;            // момент сил (device)
 tPanel      *panels_host = NULL;                // массив панелей (host)
 tPanel      *panels_device = NULL;              // массив панелей (device)
+PVortex     *V_second_device = NULL;            // скорости второго компонента (device)
+PVortex     *POS_second_device = NULL;          // координаты точек примеси (device)
+PVortex     *POS_second_host = NULL;            // координаты точек примеси (host)
 FILE *log_file = NULL;
 FILE *timings_file = NULL;
 cudaError_t cuda_error = cudaSuccess;
 
 #define LOAD_UINT_CONF_PARAM( param ) \
-    else if( !_strncmp( buf, #param " ") ) { \
+    if( !_strncmp( buf, #param " ") ) { \
         sscanf( buf, "%*s %zu", &conf.param ); \
         log_d(#param " = %zu", conf.param); \
     }
 #define LOAD_FLOAT_CONF_PARAM( param ) \
-    else if( !_strncmp( buf, #param " ") ) { \
+    if( !_strncmp( buf, #param " ") ) { \
         sscanf( buf, "%*s %lf", &conf.param ); \
         log_d(#param " = %lf", conf.param); \
     }
 #define LOAD_BOOL_CONF_PARAM( param ) \
-    else if( !_strncmp( buf, #param " ") ) { \
+    if( !_strncmp( buf, #param " ") ) { \
         sscanf( buf, "%*s %u", &conf.param ); \
         log_d(#param " = %u", conf.param); \
     }
+#define LOAD_STR_CONF_PARAM( param ) \
+    if( !_strncmp( buf, #param " ") ) { \
+            sscanf( buf, "%*s %s", conf.param ); \
+            log_d("pr_file = %s", conf.param); \
+        }
 
 static int read_config( const char *fname ) {
     FILE *conf_f = fopen( fname, "r" );
@@ -61,45 +69,37 @@ static int read_config( const char *fname ) {
     }
     char buf[236];
     while ( fgets( buf, sizeof(buf), conf_f ) ) {
-        if( !_strncmp( buf, "pr_file ") ) {
-            sscanf( buf, "%*s %s", conf.pr_file );
-            log_d("pr_file = %s", conf.pr_file);
-        }
-        else if( !_strncmp( buf, "timings_file ") ) {
-            sscanf( buf, "%*s %s", conf.timings_file );
-            log_d("timings_file = %s", conf.timings_file);
-        }
-        else if( !_strncmp( buf, "kadr_file ") ) {
-            sscanf( buf, "%*s %s", conf.kadr_file );
-            log_d("kadr_file = %s", conf.kadr_file);
-        }
-        LOAD_UINT_CONF_PARAM(steps)
-        LOAD_UINT_CONF_PARAM(saving_step)
-        LOAD_FLOAT_CONF_PARAM(dt)
-        LOAD_UINT_CONF_PARAM(v_inf_incr_steps)
-        LOAD_UINT_CONF_PARAM(inc_step)
-        LOAD_FLOAT_CONF_PARAM(viscosity)
-        LOAD_FLOAT_CONF_PARAM(rho)
-        LOAD_FLOAT_CONF_PARAM(v_inf_x)
-        LOAD_FLOAT_CONF_PARAM(v_inf_y)
-        LOAD_UINT_CONF_PARAM(n_of_points)
-        LOAD_FLOAT_CONF_PARAM(x_max)
-        LOAD_FLOAT_CONF_PARAM(x_min)
-        LOAD_FLOAT_CONF_PARAM(y_max)
-        LOAD_FLOAT_CONF_PARAM(y_min)
-        LOAD_FLOAT_CONF_PARAM(ve_size)
-        LOAD_UINT_CONF_PARAM(n_col)
-        LOAD_FLOAT_CONF_PARAM(h_col_x)
-        LOAD_FLOAT_CONF_PARAM(h_col_y)
-        LOAD_FLOAT_CONF_PARAM(rc_x)
-        LOAD_FLOAT_CONF_PARAM(rc_y)
-        LOAD_FLOAT_CONF_PARAM(r_col_diff_sign)
-        LOAD_FLOAT_CONF_PARAM(r_col_same_sign)
-        LOAD_BOOL_CONF_PARAM(matrix_load)
-        LOAD_FLOAT_CONF_PARAM(max_ve_g)
+        LOAD_STR_CONF_PARAM(pr_file)
+        else LOAD_STR_CONF_PARAM(timings_file)
+        else LOAD_STR_CONF_PARAM(kadr_file)
+        else LOAD_UINT_CONF_PARAM(steps)
+        else LOAD_UINT_CONF_PARAM(saving_step)
+        else LOAD_FLOAT_CONF_PARAM(dt)
+        else LOAD_UINT_CONF_PARAM(v_inf_incr_steps)
+        else LOAD_UINT_CONF_PARAM(inc_step)
+        else LOAD_FLOAT_CONF_PARAM(viscosity)
+        else LOAD_FLOAT_CONF_PARAM(rho)
+        else LOAD_FLOAT_CONF_PARAM(v_inf_x)
+        else LOAD_FLOAT_CONF_PARAM(v_inf_y)
+        else LOAD_UINT_CONF_PARAM(n_of_points)
+        else LOAD_FLOAT_CONF_PARAM(x_max)
+        else LOAD_FLOAT_CONF_PARAM(x_min)
+        else LOAD_FLOAT_CONF_PARAM(y_max)
+        else LOAD_FLOAT_CONF_PARAM(y_min)
+        else LOAD_FLOAT_CONF_PARAM(ve_size)
+        else LOAD_UINT_CONF_PARAM(n_col)
+        else LOAD_FLOAT_CONF_PARAM(h_col_x)
+        else LOAD_FLOAT_CONF_PARAM(h_col_y)
+        else LOAD_FLOAT_CONF_PARAM(rc_x)
+        else LOAD_FLOAT_CONF_PARAM(rc_y)
+        else LOAD_FLOAT_CONF_PARAM(r_col_diff_sign)
+        else LOAD_FLOAT_CONF_PARAM(r_col_same_sign)
+        else LOAD_BOOL_CONF_PARAM(matrix_load)
+        else LOAD_FLOAT_CONF_PARAM(max_ve_g)
+        else LOAD_UINT_CONF_PARAM(n_of_second)
 #ifndef NO_TREE
-        LOAD_UINT_CONF_PARAM(tree_depth)
-        LOAD_FLOAT_CONF_PARAM(theta)
+        else LOAD_UINT_CONF_PARAM(tree_depth)
+        else LOAD_FLOAT_CONF_PARAM(theta)
 #endif // NO_TREE
     }
     fclose( conf_f );
@@ -118,12 +118,15 @@ static void mem_clear() {
     cudaFree( F_p_device );
     cudaFree( Momentum_device );
     cudaFree( panels_device );
+    cudaFree( V_second_device );
+    cudaFree( POS_second_device );
     cudaDeviceReset();
     free( POS_host );
     free( VEL_host );
     free( Contr_points_host );
     free( V_contr_host );
     free( panels_host );
+    free( POS_second_host );
 }
 
 static void save_contr_vels( PVortex *contr_points, PVortex *v_contr, int _step ) {
@@ -154,6 +157,35 @@ static void save_contr_vels( PVortex *contr_points, PVortex *v_contr, int _step 
         fclose(outfile);
     }
 }
+
+static void save_to_file_second(PVortex *POS, size_t size, Eps_Str Psp, int _step) {
+    char fname1[] = "output/second/Kadr";
+    char fname2[] = ".txt";
+    char fzero[] = "0";
+    char fstep[6];
+    char fname[ sizeof(fname1) + 10 ];
+    fname[0] = '\0';
+    itoaxx(_step,fstep,10);
+    strcat(fname,fname1);
+    if (_step<10) strcat(fname,fzero);
+    if (_step<100) strcat(fname,fzero);
+    if (_step<1000) strcat(fname,fzero);
+    if (_step<10000) strcat(fname,fzero);
+    if (conf.steps >= 10000 && _step<100000) strcat(fname,fzero);
+    strcat(fname,fstep);
+    strcat(fname,fname2);
+    FILE *outfile = fopen(fname, "w");
+    if( !outfile ) {
+        log_e("error file opening %s : %s", fname, strerror(errno) );
+        return;
+    }
+    log_i( "Output %d", _step );
+    fprintf( outfile, "%zu\n", size );
+    for (size_t i = 0; i < size; ++i) {
+        fprintf( outfile, "%zu %lf %lf %lf %lf %lf %lf %lf\n", i, Psp.eps, POS[i].v[0], POS[i].v[1], 0.0, 0.0, 0.0, 100.0 );
+    }//for i
+    fclose(outfile);
+} //save_to_file
 
 static void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
     char fname1[] = "output/kadrs/Kadr";
@@ -197,7 +229,7 @@ static void load_from_file(char *fname, Vortex **POS, size_t *size) {
         fscanf( infile, "%*u %*f %lf %lf %*f %*f %*f %lf\n", &((*POS)[i].r[0]), &((*POS)[i].r[1]), &((*POS)[i].g) );
     }//for i
     fclose(infile);
-} //save_to_file
+} //load_from_file
 
 void save_forces(PVortex F_p, TVars M, int step) {
     static FILE *outfile = NULL;
@@ -466,8 +498,14 @@ int main( int argc, char **argv ) {
     memset(V_contr_host, 0, sizeof(PVortex) * 500 *conf.saving_step );
     cuda_safe( cudaMalloc( (void**)&V_contr_device, 500 * conf.saving_step * sizeof(PVortex) ) );
     cuda_safe( cudaMalloc( (void**)&Contr_points_device, 500 * sizeof(PVortex) ) );
-    cuda_safe( cudaMemcpy( Contr_points_device, Contr_points_host, 500 * sizeof(PVortex), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemset( Contr_points_device, 0, 500 * sizeof(PVortex) ) );
     PVortex *V_contr_tmp = NULL;
+
+    POS_second_host = (PVortex*)malloc( sizeof(PVortex) * conf.n_of_second );
+    memset(POS_second_host, 0, sizeof(PVortex) * conf.n_of_second );
+    cuda_safe( cudaMalloc( (void**)&V_second_device, conf.n_of_second * sizeof(PVortex) ) );
+    cuda_safe( cudaMalloc( (void**)&POS_second_device, conf.n_of_second * sizeof(PVortex) ) );
+    cuda_safe( cudaMemset( POS_second_device, 0, conf.n_of_second * sizeof(PVortex) ) );
 
     F_p_host.v[0] = 0.0;
     F_p_host.v[1] = 0.0;
@@ -570,7 +608,13 @@ int main( int argc, char **argv ) {
             cudaDeviceSynchronize();
             if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
                 log_e("Saving ERROR at POS copy" );
-                log_e( "n = %zu, sizeof(POS_host) = %zu, size = %zu", n, sizeof(POS_host), size );
+                log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
+                mem_clear();
+                return 1;
+            }// if cuda_safe
+            if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, conf.n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+                log_e("Saving ERROR at POS copy" );
+                log_e( "n = %zu, POS_host = %p, size = %zu", conf.n_of_second, POS_second_host, size );
                 mem_clear();
                 return 1;
             }// if cuda_safe
@@ -585,6 +629,7 @@ int main( int argc, char **argv ) {
 //////////////////////////////////////////////////////////////////////////
 
             save_to_file(POS_host, n, Psp, current_step);
+            save_to_file_second(POS_second_host, conf.n_of_second, Psp, current_step);
         }// if saving_step
         velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_tmp, 500);
         V_contr_tmp += 500;
@@ -599,6 +644,13 @@ int main( int argc, char **argv ) {
             return 1;
         }// if cuda_safe
         save_forces(F_p_host, Momentum_host, current_step);
+
+        err = second_speed( POS_device, V_inf_device, n, POS_second_device, V_second_device, conf.n_of_second );
+        if (err != 0) {
+            log_e( "Speed evaluation ERROR!" );
+            mem_clear();
+            return 1;
+        }
 
         // расчёт скоростей
         start = 0; stop = 0;
@@ -631,10 +683,17 @@ int main( int argc, char **argv ) {
     cuda_safe( cudaMemcpy( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
     if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
         log_e("Saving ERROR at POS copy" );
-        log_e( "n = %zu, sizeof(POS_host) = %zu, size = %zu", n, sizeof(POS_host), size );
+        log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
         mem_clear();
         return 1;
     }// if cuda_safe
+    if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, conf.n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+        log_e("Saving ERROR at POS copy" );
+        log_e( "n = %zu, POS_host = %p, size = %zu", conf.n_of_second, POS_second_host, size );
+        mem_clear();
+        return 1;
+    }// if cuda_safe
+    save_to_file_second(POS_second_host, conf.n_of_second, Psp, conf.steps);
     save_to_file( POS_host, n,  Psp, conf.steps );
 
     if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
