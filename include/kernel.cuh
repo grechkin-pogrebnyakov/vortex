@@ -209,6 +209,9 @@ __device__ void I_0_I_3f(float Ra_0, float Ra_1, float Rb_0, float Rb_1, float N
 __device__ bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int* hitpan);
 
 // вычисление скоростей в контрольных точках
-__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, unsigned n_contr);
+__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, Vortex *Contr_points, PVortex *V, unsigned n_contr);
+
+// вычисление скоростей частиц примеси
+__global__ void second_speed_Kernel( PVortex *v_env, PVortex *V, unsigned n_contr);
 
 #endif // KERNEL_CUH_

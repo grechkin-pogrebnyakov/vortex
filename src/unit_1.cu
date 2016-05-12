@@ -32,6 +32,7 @@ __constant__ TVars h_col_y;
 __constant__ TVars rho;
 __constant__ TVars rc_x;
 __constant__ TVars rc_y;
+__constant__ TVars rel_t;
 
 #ifndef NO_TREE
 __constant__ float theta;
@@ -1221,6 +1222,7 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
 int init_device_conf_values() {
     srand((unsigned int)time(NULL));
     if( cuda_safe( cudaMemcpyToSymbol( dt, &conf.dt, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( rel_t, &conf.rel_t, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( quant, &conf.birth_quant, sizeof(size_t) ) ) ) return 1;
     TVars ve_s2 = conf.ve_size * conf.ve_size;
     if( cuda_safe( cudaMemcpyToSymbol( ve_size, &conf.ve_size, sizeof(TVars) ) ) ) return 1;
@@ -1247,7 +1249,7 @@ int init_device_conf_values() {
     return 0;
 }
 
-int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, PVortex *Contr_points, PVortex *V, size_t n_contr) {
+int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, Vortex *Contr_points, PVortex *V, size_t n_contr) {
     log_d("velocity control");
     TVars rash = 0.0;
     size_t birth = 0;
@@ -1263,10 +1265,50 @@ int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, PVortex *Contr_points,
     return 0;
 }
 
-int second_speed(Vortex *pos, TVctr *V_inf, size_t n, PVortex *second_pos, PVortex *v_second, size_t n_second) {
+int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVortex *v_second, PVortex *v_env, size_t *n_second, tPanel *panels) {
     log_d("second_speed");
-    if( velocity_control( pos, V_inf, n, second_pos, v_second, n_second ) ) {
+    if( velocity_control( pos, V_inf, n, second_pos, v_env, *n_second ) ) {
         return 1;
     }
+    if ( !current_step ) {
+        if( cuda_safe( cudaMemcpy( v_second, v_env, sizeof(PVortex) * (*n_second), cudaMemcpyDeviceToDevice ) ) ) {
+            log_e("unable to init v_second");
+            return 1;
+        }
+    }
+    TVars rash = 0.0;
+    size_t birth = 0;
+    rash = (TVars)(*n_second) / BLOCK_SIZE;
+    birth = (size_t)(BLOCK_SIZE * ceil(rash));
+    dim3 threads = dim3(BLOCK_SIZE);
+    dim3 blocks  = dim3(birth / BLOCK_SIZE);
+    second_speed_Kernel <<< blocks, threads >>> ( v_env, v_second, (*n_second) );
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }
+    step_Kernel <<< blocks, threads >>> (second_pos, v_second, NULL, NULL, NULL, (*n_second), panels);
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+    size_t *n_dev = NULL;
+    if( cuda_safe( cudaMalloc( (void**)&n_dev ,  sizeof(size_t) ) ) ) {
+        return 1;
+    }//if
+    if( cuda_safe( cudaMemcpy( n_dev, n_second, sizeof(size_t), cudaMemcpyHostToDevice ) ) ) {
+        return 1;
+    }//if
+    log_d( "n_old =  %zu", *n_second );
+    sort_Kernel <<< dim3(1), dim3(1) >>> (second_pos,n_dev);
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+    if( cuda_safe( cudaMemcpy( n_second,n_dev,sizeof(size_t), cudaMemcpyDeviceToHost ) ) ) {
+        return 1;
+    }//if
+    log_d( "n_new =  %zu", *n_second );
+    cudaFree(n_dev);
     return 0;
 }
