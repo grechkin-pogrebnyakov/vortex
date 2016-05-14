@@ -99,6 +99,7 @@ static int read_config( const char *fname ) {
         else LOAD_FLOAT_CONF_PARAM(max_ve_g)
         else LOAD_UINT_CONF_PARAM(n_of_second)
         else LOAD_FLOAT_CONF_PARAM(rel_t)
+        else LOAD_BOOL_CONF_PARAM(steady_flow)
 #ifndef NO_TREE
         else LOAD_UINT_CONF_PARAM(tree_depth)
         else LOAD_FLOAT_CONF_PARAM(theta)
@@ -612,87 +613,102 @@ int main( int argc, char **argv ) {
         // вывод данных в файл
         if (current_step % conf.saving_step == 0) {
             cudaDeviceSynchronize();
-            if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
-                log_e("Saving ERROR at POS copy" );
-                log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
-                mem_clear();
-                return 1;
-            }// if cuda_safe
+            if( !conf.steady_flow ) {
+                if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
+                    log_e("Saving ERROR at POS copy" );
+                    log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
+                    mem_clear();
+                    return 1;
+                }// if cuda_safe
+
+                cuda_safe( cudaMemcpy( V_contr_host, V_contr_device, 500 * conf.saving_step * sizeof(PVortex), cudaMemcpyDeviceToHost ) );
+                V_contr_tmp = V_contr_device;
+                save_contr_vels( Contr_points_host, V_contr_host, current_step );
+
+                save_to_file(POS_host, n, Psp, current_step);
+            }
+
             if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
                 log_e("Saving ERROR at POS copy" );
                 log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
                 mem_clear();
                 return 1;
             }// if cuda_safe
-//////////////////////////////////////////////////////////////////////////
-
-
-            cuda_safe( cudaMemcpy( V_contr_host, V_contr_device, 500 * conf.saving_step * sizeof(PVortex), cudaMemcpyDeviceToHost ) );
-            V_contr_tmp = V_contr_device;
-            save_contr_vels( Contr_points_host, V_contr_host, current_step );
-
-
-//////////////////////////////////////////////////////////////////////////
-
-            save_to_file(POS_host, n, Psp, current_step);
             save_to_file_second(POS_second_host, n_of_second, Psp, current_step);
         }// if saving_step
-        velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_tmp, 500);
-        V_contr_tmp += 500;
+        err = second_speed( POS_device, V_inf_device, n, POS_second_device, V_second_device, V_env_device, &n_of_second, panels_device );
+        if (err != 0) {
+            log_e( "second Speed evaluation ERROR!" );
+            mem_clear();
+            return 1;
+        }
+
+        if( !conf.steady_flow ) {
+            velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_tmp, 500);
+            V_contr_tmp += 500;
+            if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+                log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", current_step, &F_p_host, F_p_device );
+                mem_clear();
+                return 1;
+            }// if cuda_safe
+            if( cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost ) ) ) {
+                log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", current_step, &Momentum_host, Momentum_device );
+                mem_clear();
+                return 1;
+            }// if cuda_safe
+
+            save_forces(F_p_host, Momentum_host, current_step);
+            // расчёт скоростей
+            start = 0; stop = 0;
+            start_timer( &start, &stop );
+            err = Speed( POS_device, V_inf_device, s, VEL_device, d_device, conf.viscosity, panels_device );
+            if (err != 0) {
+                log_e( "Speed evaluation ERROR!" );
+                mem_clear();
+                return 1;
+            }
+            speed_time += stop_timer(start, stop);
+            F_p_host.v[0] = 0.0;
+            F_p_host.v[1] = 0.0;
+            Momentum_host = 0.0;
+            cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
+            cuda_safe( cudaMemcpy( d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice ) );
+            cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice ) );
+            // перемещение ВЭ
+            start = 0; stop = 0;
+            start_timer( &start, &stop );
+            err = Step( POS_device, VEL_device, &n, s, d_g_device, F_p_device , Momentum_device, panels_device );
+            if (err != 0) {
+                log_e( "Moving ERROR!" );
+                mem_clear();
+                return 1;
+            }
+            step_time += stop_timer( start, stop );
+        }
+    }// for current_step
+    log_t( "%d\tN = %zu\tCreation time = %f\tSpeed time = %f\tStep time = %f\n", conf.steps, n, creation_time, speed_time, step_time );
+    if( !conf.steady_flow ) {
+        cuda_safe( cudaMemcpy( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
+        if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
+            log_e("Saving ERROR at POS copy" );
+            log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
+            mem_clear();
+            return 1;
+        }// if cuda_safe
+        save_to_file( POS_host, n,  Psp, conf.steps );
+
         if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
-            log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", current_step, &F_p_host, F_p_device );
+            log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", conf.steps, &F_p_host, F_p_device );
             mem_clear();
             return 1;
         }// if cuda_safe
         if( cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost ) ) ) {
-            log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", current_step, &Momentum_host, Momentum_device );
+            log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", conf.steps, &Momentum_host, Momentum_device );
             mem_clear();
             return 1;
         }// if cuda_safe
-        save_forces(F_p_host, Momentum_host, current_step);
-
-        err = second_speed( POS_device, V_inf_device, n, POS_second_device, V_second_device, V_env_device, &n_of_second, panels_device );
-        if (err != 0) {
-            log_e( "Speed evaluation ERROR!" );
-            mem_clear();
-            return 1;
-        }
-
-        // расчёт скоростей
-        start = 0; stop = 0;
-        start_timer( &start, &stop );
-        err = Speed( POS_device, V_inf_device, s, VEL_device, d_device, conf.viscosity, panels_device );
-        if (err != 0) {
-            log_e( "Speed evaluation ERROR!" );
-            mem_clear();
-            return 1;
-        }
-        speed_time += stop_timer(start, stop);
-        F_p_host.v[0] = 0.0;
-        F_p_host.v[1] = 0.0;
-        Momentum_host = 0.0;
-        cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
-        cuda_safe( cudaMemcpy( d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice ) );
-        cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice ) );
-        // перемещение ВЭ
-        start = 0; stop = 0;
-        start_timer( &start, &stop );
-        err = Step( POS_device, VEL_device, &n, s, d_g_device, F_p_device , Momentum_device, panels_device );
-        if (err != 0) {
-            log_e( "Moving ERROR!" );
-            mem_clear();
-            return 1;
-        }
-        step_time += stop_timer( start, stop );
-    }// for current_step
-    log_t( "%d\tN = %zu\tCreation time = %f\tSpeed time = %f\tStep time = %f\n", conf.steps, n, creation_time, speed_time, step_time );
-    cuda_safe( cudaMemcpy( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
-    if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
-        log_e("Saving ERROR at POS copy" );
-        log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
-        mem_clear();
-        return 1;
-    }// if cuda_safe
+        save_forces(F_p_host, Momentum_host, conf.steps);
+    }
     if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
         log_e("Saving ERROR at POS copy" );
         log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
@@ -700,19 +716,6 @@ int main( int argc, char **argv ) {
         return 1;
     }// if cuda_safe
     save_to_file_second(POS_second_host, n_of_second, Psp, conf.steps);
-    save_to_file( POS_host, n,  Psp, conf.steps );
-
-    if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
-        log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", conf.steps, &F_p_host, F_p_device );
-        mem_clear();
-        return 1;
-    }// if cuda_safe
-    if( cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost ) ) ) {
-        log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", conf.steps, &Momentum_host, Momentum_device );
-        mem_clear();
-        return 1;
-    }// if cuda_safe
-    save_forces(F_p_host, Momentum_host, conf.steps);
     // вывод в файл последнего шага
     log_i( "ready!" );
     mem_clear();
