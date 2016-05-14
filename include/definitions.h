@@ -127,7 +127,7 @@ struct conf_t {
     uint8_t log_level;
     char timings_file[256];
     char kadr_file[256];
-    size_t n_of_second;
+    char second_points_file[256];
     TVars rel_t;
     unsigned steady_flow;
 #ifndef NO_TREE

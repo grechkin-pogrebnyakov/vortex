@@ -73,6 +73,7 @@ static int read_config( const char *fname ) {
         LOAD_STR_CONF_PARAM(pr_file)
         else LOAD_STR_CONF_PARAM(timings_file)
         else LOAD_STR_CONF_PARAM(kadr_file)
+        else LOAD_STR_CONF_PARAM(second_points_file)
         else LOAD_UINT_CONF_PARAM(steps)
         else LOAD_UINT_CONF_PARAM(saving_step)
         else LOAD_FLOAT_CONF_PARAM(dt)
@@ -97,7 +98,6 @@ static int read_config( const char *fname ) {
         else LOAD_FLOAT_CONF_PARAM(r_col_same_sign)
         else LOAD_BOOL_CONF_PARAM(matrix_load)
         else LOAD_FLOAT_CONF_PARAM(max_ve_g)
-        else LOAD_UINT_CONF_PARAM(n_of_second)
         else LOAD_FLOAT_CONF_PARAM(rel_t)
         else LOAD_BOOL_CONF_PARAM(steady_flow)
 #ifndef NO_TREE
@@ -420,7 +420,7 @@ int main( int argc, char **argv ) {
     int         err = 0;                            // обработка ошибок
     PVortex     F_p_host = {0.0, 0.0};                           // главный вектор сил давления (host)
     TVars       Momentum_host = 0.0;                // момент сил (host)
-    size_t n_of_second = conf.n_of_second;
+    size_t n_of_second = 0;
 
 
 // расширенное количество рождаемых ВЭ
@@ -483,6 +483,27 @@ int main( int argc, char **argv ) {
         }
     }
 
+    if( *(conf.second_points_file) ) {
+        Vortex *tmp = NULL;
+        load_from_file(conf.second_points_file, &tmp, &n_of_second);
+
+        cuda_safe( cudaMemcpy( POS_device, POS_host, n_of_second * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+
+        POS_second_host = (Vortex*)malloc( sizeof(Vortex) * n_of_second );
+        memcpy( POS_second_host, tmp, n_of_second * sizeof(Vortex) );
+        cuda_safe( cudaMalloc( (void**)&V_second_device, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMemset( V_second_device, 0, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMalloc( (void**)&V_env_device, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMemset( V_env_device, 0, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMalloc( (void**)&POS_second_device, n_of_second * sizeof(Vortex) ) );
+        cuda_safe( cudaMemcpy( POS_second_device, POS_second_host, n_of_second * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+
+        free(tmp);
+    } else if( conf.steady_flow ){
+        log_e("steady_flow and no second component");
+        exit(1);
+    }
+
 // количество ВЭ
     n = 0;
 
@@ -506,13 +527,6 @@ int main( int argc, char **argv ) {
     cuda_safe( cudaMalloc( (void**)&Contr_points_device, 500 * sizeof(Vortex) ) );
     cuda_safe( cudaMemcpy( Contr_points_device, Contr_points_host, 500 * sizeof(Vortex), cudaMemcpyHostToDevice ) );
     PVortex *V_contr_tmp = NULL;
-
-    POS_second_host = (Vortex*)malloc( sizeof(Vortex) * conf.n_of_second );
-    memset(POS_second_host, 0, sizeof(PVortex) * conf.n_of_second );
-    cuda_safe( cudaMalloc( (void**)&V_second_device, conf.n_of_second * sizeof(PVortex) ) );
-    cuda_safe( cudaMalloc( (void**)&V_env_device, conf.n_of_second * sizeof(PVortex) ) );
-    cuda_safe( cudaMalloc( (void**)&POS_second_device, conf.n_of_second * sizeof(Vortex) ) );
-    cuda_safe( cudaMemset( POS_second_device, 0, conf.n_of_second * sizeof(Vortex) ) );
 
     F_p_host.v[0] = 0.0;
     F_p_host.v[1] = 0.0;
@@ -628,19 +642,23 @@ int main( int argc, char **argv ) {
                 save_to_file(POS_host, n, Psp, current_step);
             }
 
-            if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
-                log_e("Saving ERROR at POS copy" );
-                log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
+            if( n_of_second ) {
+                if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+                    log_e("Saving ERROR at POS copy" );
+                    log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
+                    mem_clear();
+                    return 1;
+                }// if cuda_safe
+                save_to_file_second(POS_second_host, n_of_second, Psp, current_step);
+            }
+        }// if saving_step
+        if( n_of_second ) {
+            err = second_speed( POS_device, V_inf_device, n, POS_second_device, V_second_device, V_env_device, &n_of_second, panels_device );
+            if (err != 0) {
+                log_e( "second Speed evaluation ERROR!" );
                 mem_clear();
                 return 1;
-            }// if cuda_safe
-            save_to_file_second(POS_second_host, n_of_second, Psp, current_step);
-        }// if saving_step
-        err = second_speed( POS_device, V_inf_device, n, POS_second_device, V_second_device, V_env_device, &n_of_second, panels_device );
-        if (err != 0) {
-            log_e( "second Speed evaluation ERROR!" );
-            mem_clear();
-            return 1;
+            }
         }
 
         if( !conf.steady_flow ) {
@@ -709,13 +727,16 @@ int main( int argc, char **argv ) {
         }// if cuda_safe
         save_forces(F_p_host, Momentum_host, conf.steps);
     }
-    if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
-        log_e("Saving ERROR at POS copy" );
-        log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
-        mem_clear();
-        return 1;
-    }// if cuda_safe
-    save_to_file_second(POS_second_host, n_of_second, Psp, conf.steps);
+
+    if( n_of_second ) {
+        if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+            log_e("Saving ERROR at POS copy" );
+            log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
+            mem_clear();
+            return 1;
+        }// if cuda_safe
+        save_to_file_second(POS_second_host, n_of_second, Psp, conf.steps);
+    }
     // вывод в файл последнего шага
     log_i( "ready!" );
     mem_clear();
