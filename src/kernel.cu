@@ -859,10 +859,10 @@ __global__ void birth_Kernel(Vortex *pos, size_t n_vort, size_t n_birth, size_t 
 //		pos[i+n_vort].r[0] = pos_N.r[0];
 //		pos[i+n_vort].r[1] = pos_N.r[1];
 
-		//pos[i + n_vort].r[0] = R_birth_x(panel, i);
-        pos[i + n_vort].r[0] = panel[i].right[0] + panel[i].norm[0] * 1e-7;
-		//pos[i+n_vort].r[1] = R_birth_y(panel, i);
-        pos[i + n_vort].r[1] = panel[i].right[1] + panel[i].norm[1] * 1e-7;
+        pos[i + n_vort].r[0] = R_birth_x(panel, i);
+        //pos[i + n_vort].r[0] = panel[i].right[0] + panel[i].norm[0] * 1e-7;
+        pos[i + n_vort].r[1] = R_birth_y(panel, i);
+        //pos[i + n_vort].r[1] = panel[i].right[1] + panel[i].norm[1] * 1e-7;
             pos[i + n_vort].g = 0.5 * ( g * Panel_length( panel, i )\
                                  + g_next * Panel_length( panel, i_next ) );
 	}
