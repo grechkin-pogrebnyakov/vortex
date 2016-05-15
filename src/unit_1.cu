@@ -18,8 +18,8 @@ extern int current_step;
 
 __constant__ TVars dt;
 __constant__ size_t quant;
-__constant__ float ve_size;
-__constant__ float ve_size2;
+__constant__ TVars ve_size;
+__constant__ TVars ve_size2;
 __constant__ TVars r_col_diff_sign2, r_col_same_sign2;
 __constant__ TVars max_ve_g;
 __constant__ size_t n_of_points;
@@ -32,6 +32,7 @@ __constant__ TVars h_col_y;
 __constant__ TVars rho;
 __constant__ TVars rc_x;
 __constant__ TVars rc_y;
+__constant__ TVars rel_t;
 
 #ifndef NO_TREE
 __constant__ float theta;
@@ -449,6 +450,59 @@ TVars   *load_matrix(size_t *p) {
     return MM;
 }
 
+int allocate_arrays(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t size) {
+    if ( !p_host || !p_dev || !v_host || !v_dev || !d_dev || !size ) {
+        log_e( "wrong parameters" );
+        return 2;
+    }
+    *p_host = (Vortex*)malloc( sizeof(Vortex) * size );
+    memset( *p_host, 0, sizeof(Vortex) * size );
+    *v_host = (PVortex*)malloc( sizeof(PVortex) * size );
+    memset( *v_host, 0, sizeof(PVortex) * size );
+    if( cuda_safe( cudaMalloc( (void**)p_dev, size * sizeof(Vortex) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemset( (void*)(*p_dev), 0, size * sizeof(Vortex) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMalloc( (void**)d_dev, size * sizeof(TVars) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemset( (void*)(*d_dev), 0, size * sizeof(TVars) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMalloc( (void**)v_dev, size  * sizeof(PVortex) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemset( (void*)(*v_dev), 0, size  * sizeof(PVortex) ) ) ) {
+        return 1;
+    }
+    return 0;
+}
+
+int randomize_tail(Vortex **p_dev, size_t new_size, size_t increased) {
+    log_d("randomize_tail");
+    float *rnd_dev = NULL, *rnd_host = NULL;
+    rnd_host = (float*)malloc( sizeof(float) * increased );
+    for (int i = 0; i < increased; ++i) {
+        rnd_host[i] = (float)rand();
+    }
+    if( cuda_safe( cudaMalloc( (void**)&rnd_dev, increased * sizeof(float) ) ) ) {
+        return 1;
+    }
+    if( cuda_safe( cudaMemcpy( rnd_dev, rnd_host, increased * sizeof(float), cudaMemcpyHostToDevice ) ) ) {
+        return 1;
+    }
+    dim3 threads = dim3(BLOCK_SIZE);
+    dim3 blocks  = dim3(increased/BLOCK_SIZE);
+    // generate random numbers
+    zero_Kernel <<< blocks, threads >>> (rnd_dev, *p_dev, new_size - increased );
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }
+}
+
 int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size) {
     if ( !p_host || !p_dev || !v_host || !v_dev || !d_dev || !size ) {
         log_e( "wrong parameters" );
@@ -485,47 +539,16 @@ int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex *
     }
     else if ( !(*p_host) && !(*p_dev) && !(*v_host) && !(*v_dev) && !(*d_dev) ) {
         *size = conf.inc_step;
-        *p_host = (Vortex*)malloc( sizeof(Vortex) * (*size) );
-        memset( *p_host, 0, sizeof(Vortex) * (*size) );
-        *v_host = (PVortex*)malloc( sizeof(PVortex) * (*size) );
-        memset( *v_host, 0, sizeof(PVortex) * (*size) );
-        if( cuda_safe( cudaMalloc( (void**)p_dev, *size * sizeof(Vortex) ) ) ) {
+        if( allocate_arrays( p_host, p_dev, v_host, v_dev, d_dev, *size ) )
             return 1;
-        }
-        if( cuda_safe( cudaMalloc( (void**)d_dev, *size * sizeof(TVars) ) ) ) {
-            return 1;
-        }
-        if( cuda_safe( cudaMalloc( (void**)v_dev , *size  * sizeof(PVortex) ) ) ) {
-            return 1;
-        }
     }
     else {
         log_e( "wrong parameters" );
         return 2;
     }
+    if( randomize_tail( p_dev, *size, conf.inc_step ) )
+        return 1;
 
-    srand((unsigned int)time(NULL));
-    float *rnd_dev = NULL, *rnd_host = NULL;
-    rnd_host = (float*)malloc( sizeof(float) * conf.inc_step );
-    for (int i = 0; i < conf.inc_step; ++i) {
-        rnd_host[i] = (float)rand();
-    }
-    if( cuda_safe( cudaMalloc( (void**)&rnd_dev, conf.inc_step * sizeof(float) ) ) ) {
-        return 1;
-    }
-    if( cuda_safe( cudaMemcpy( rnd_dev, rnd_host, conf.inc_step * sizeof(float), cudaMemcpyHostToDevice ) ) ) {
-        return 1;
-    }
-    dim3 threads = dim3(BLOCK_SIZE);
-    dim3 blocks  = dim3(conf.inc_step/BLOCK_SIZE);
-    // generate random numbers
-    zero_Kernel <<< blocks, threads >>> (rnd_dev, *p_dev, *size - conf.inc_step );
-    cudaDeviceSynchronize();
-    //	cuerr=cudaMemcpy ( p_host , p_dev , size  * sizeof(Vortex) , cudaMemcpyDeviceToHost);
-    //	save_to_file_size(1);
-    if( cuda_safe( cudaGetLastError() ) ) {
-        return 1;
-    }
     return 0;
 }
 
@@ -1198,11 +1221,13 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
 }
 
 int init_device_conf_values() {
+    srand((unsigned int)time(NULL));
     if( cuda_safe( cudaMemcpyToSymbol( dt, &conf.dt, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( rel_t, &conf.rel_t, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( quant, &conf.birth_quant, sizeof(size_t) ) ) ) return 1;
-    float ve_s2 = conf.ve_size * conf.ve_size;
+    TVars ve_s2 = conf.ve_size * conf.ve_size;
     if( cuda_safe( cudaMemcpyToSymbol( ve_size, &conf.ve_size, sizeof(TVars) ) ) ) return 1;
-    if( cuda_safe( cudaMemcpyToSymbol( ve_size2, &ve_s2, sizeof(float) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( ve_size2, &ve_s2, sizeof(TVars) ) ) ) return 1;
     TVars r_col_diff2 = conf.r_col_diff_sign * conf.r_col_diff_sign * ve_s2;
     TVars r_col_same2 = conf.r_col_same_sign * conf.r_col_same_sign * ve_s2;
     if( cuda_safe( cudaMemcpyToSymbol( r_col_diff_sign2, &r_col_diff2, sizeof(TVars) ) ) ) return 1;
@@ -1219,24 +1244,85 @@ int init_device_conf_values() {
     if( cuda_safe( cudaMemcpyToSymbol( rc_x, &conf.rc_x, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( rc_y, &conf.rc_y, sizeof(TVars) ) ) ) return 1;
 #ifndef NO_TREE
-    if( cuda_safe( cudaMemcpyToSymbol( theta, &conf.theta, sizeof(float) ) ) ) return 1;
+    float h_theta = (float)conf.theta;
+    if( cuda_safe( cudaMemcpyToSymbol( theta, &h_theta, sizeof(float) ) ) ) return 1;
 #endif // NO_TREE
     return 0;
 }
 
-int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v) {
+int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, Vortex *Contr_points, PVortex *V, size_t n_contr) {
     log_d("velocity control");
-    size_t nummm = 500;
     TVars rash = 0.0;
     size_t birth = 0;
-    rash = (TVars)(nummm) / BLOCK_SIZE;
+    rash = (TVars)(n_contr) / BLOCK_SIZE;
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
+    log_d("birth = %zu", birth);
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(birth / BLOCK_SIZE);
-    velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_v);
+    velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_contr);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }
+    return 0;
+}
+
+int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVortex *v_second, PVortex *v_env, size_t *n_second, tPanel *panels) {
+    log_d("second_speed n = %zu", *n_second);
+    if( velocity_control( pos, V_inf, n, second_pos, v_env, *n_second ) ) {
+        return 1;
+    }
+    if ( !current_step ) {
+        if( cuda_safe( cudaMemcpy( v_second, v_env, sizeof(PVortex) * (*n_second), cudaMemcpyDeviceToDevice ) ) ) {
+            log_e("unable to init v_second");
+            return 1;
+        }
+    }
+    static PVortex *VEL = NULL;
+    static Vortex *POS = NULL;
+    if( !VEL ) {
+        VEL = (PVortex*)malloc( sizeof(PVortex) * (*n_second) );
+        POS = (Vortex*)malloc( sizeof(Vortex) * (*n_second) );
+    }
+    cuda_safe( cudaMemcpy( POS  , second_pos , *n_second  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
+    cuda_safe( cudaMemcpy( VEL  , v_env , *n_second  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+    save_vel_to_file(POS, VEL, *n_second, current_step, 4);
+    TVars rash = 0.0;
+    size_t birth = 0;
+    rash = (TVars)(*n_second) / BLOCK_SIZE;
+    birth = (size_t)(BLOCK_SIZE * ceil(rash));
+    dim3 threads = dim3(BLOCK_SIZE);
+    dim3 blocks  = dim3(birth / BLOCK_SIZE);
+    log_d("birth = %zu", birth);
+    second_speed_Kernel <<< blocks, threads >>> ( v_env, v_second, (*n_second) );
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }
+    cuda_safe( cudaMemcpy( VEL  , v_second , *n_second  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+    save_vel_to_file(POS, VEL, *n_second, current_step, 5);
+    step_Kernel <<< blocks, threads >>> (second_pos, v_second, NULL, NULL, NULL, (*n_second), panels);
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+    size_t *n_dev = NULL;
+    if( cuda_safe( cudaMalloc( (void**)&n_dev ,  sizeof(size_t) ) ) ) {
+        return 1;
+    }//if
+    if( cuda_safe( cudaMemcpy( n_dev, n_second, sizeof(size_t), cudaMemcpyHostToDevice ) ) ) {
+        return 1;
+    }//if
+    log_d( "n_old =  %zu", *n_second );
+    sort_Kernel <<< dim3(1), dim3(1) >>> (second_pos, n_dev);
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+    if( cuda_safe( cudaMemcpy( n_second,n_dev,sizeof(size_t), cudaMemcpyDeviceToHost ) ) ) {
+        return 1;
+    }//if
+    log_d( "n_new =  %zu", *n_second );
+    cudaFree(n_dev);
     return 0;
 }

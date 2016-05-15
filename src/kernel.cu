@@ -16,8 +16,8 @@
 
 extern __constant__ TVars dt;
 extern __constant__ size_t quant;
-extern __constant__ float ve_size;
-extern __constant__ float ve_size2;
+extern __constant__ TVars ve_size;
+extern __constant__ TVars ve_size2;
 extern __constant__ TVars r_col_same_sign2;
 extern __constant__ TVars r_col_diff_sign2;
 extern __constant__ TVars max_ve_g;
@@ -31,6 +31,7 @@ extern __constant__ TVars h_col_y;
 extern __constant__ TVars rho;
 extern __constant__ TVars rc_x;
 extern __constant__ TVars rc_y;
+extern __constant__ TVars rel_t;
 
 #ifndef NO_TREE
 extern __constant__ float theta;
@@ -975,8 +976,6 @@ __global__ void shared_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *V, TVar
     }
 #endif // NO_TREE
 
-//    for( int k = 0; k < 2; ++k )
-//      V[i].v[k] =  (*V_inf)[k];
     __syncthreads();
 }
 
@@ -1086,17 +1085,24 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
 }
 
 __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_p, TVars *M, size_t n, tPanel *panels) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < n) {
-		d_g_Dev[i] = 0.0;
+        if( d_g_Dev )
+            d_g_Dev[i] = 0.0;
         TVars d_g = 0.0;
-        F_p[i].v[0] = 0.0;
-        F_p[i].v[1] = 0.0;
-        M[i] = 0.0;
+        if( F_p ) {
+            F_p[i].v[0] = 0.0;
+            F_p[i].v[1] = 0.0;
+        }
+        if( M )
+            M[i] = 0.0;
         if (i >= n - quant) {
-            F_p[i].v[0] = pos[i].g * (-pos[i].r[1]);
-            F_p[i].v[1] = pos[i].g * ( pos[i].r[0]);
-            M[i] = pos[i].g * Ro2(pos[i].r[0], pos[i].r[1], rc_x, rc_y);
+            if( F_p ) {
+                F_p[i].v[0] = pos[i].g * (-pos[i].r[1]);
+                F_p[i].v[1] = pos[i].g * ( pos[i].r[0]);
+            }
+            if( M )
+                M[i] = pos[i].g * Ro2(pos[i].r[0], pos[i].r[1], rc_x, rc_y);
         }
 	    //__syncthreads;
 
@@ -1106,14 +1112,15 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 		int hitpan = 0;
 
 	    if ( (pos[i].g != 0) && (hitting(panels, r_new_0, r_new_1, pos[i].r, &hitpan))) {
-            F_p[i].v[0] -= pos[i].g * (-panels[hitpan].contr[1]);
-            F_p[i].v[1] -= pos[i].g * ( panels[hitpan].contr[0]);
-            M[i] -= pos[i].g * Ro2(panels[hitpan].contr[0], panels[hitpan].contr[1], rc_x, rc_y);
+            if( F_p ) {
+                F_p[i].v[0] -= pos[i].g * (-panels[hitpan].contr[1]);
+                F_p[i].v[1] -= pos[i].g * ( panels[hitpan].contr[0]);
+            }
+            if( M )
+                M[i] -= pos[i].g * Ro2(panels[hitpan].contr[0], panels[hitpan].contr[1], rc_x, rc_y);
 		    r_new_0 =  2e+5;
 		    r_new_1 =  2e+5;
 		    d_g = pos[i].g;
-//printf( "d_g[%d] =  %lf \n", i, d_g];
-//		    d_g_Dev[i] = pos[i].g;
 		    pos[i].g = 0;
 		}
 
@@ -1121,12 +1128,13 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 		pos[i].r[1] = r_new_1;
 
 	    if ((pos[i].g != 0) && ((pos[i].r[0] > x_max) || (pos[i].r[0] < x_min) || (pos[i].r[1] > y_max) || (pos[i].r[1] < y_min))) {
-		    pos[i].r[0]= -2.0e+5; 
-		    pos[i].r[1]= -2.0e+5; 
+		    pos[i].r[0]= -2.0e+5;
+		    pos[i].r[1]= -2.0e+5;
 		    pos[i].g=0;
 	    }
         //__syncthreads;
-        d_g_Dev[i] = d_g;
+        if( d_g_Dev )
+            d_g_Dev[i] = d_g;
     }
 	//__syncthreads;
 }
@@ -1147,24 +1155,25 @@ __global__ void summ_Kernel(TVars *d_g_Dev, TVars *d_g, PVortex *F_p_dev, PVorte
 
 __global__ void sort_Kernel(Vortex *pos, size_t *s) {
     TVars r0 = 0.0, r1 = 0.0;
-	size_t n = 0;
+    size_t n = 0;
     n = (*s);
-	for (size_t i = 0 ; i < n ; ++i) {
-		if (fabs(pos[i].g) < DELT) {
-			r0=pos[i].r[0];
-			r1=pos[i].r[1];
-			pos[i].g=pos[n-1].g;
-			pos[i].r[0]=pos[n-1].r[0];
-			pos[i].r[1]=pos[n-1].r[1];
-			pos[n-1].g=0;
-			pos[n-1].r[0]=r0;
-			pos[n-1].r[1]=r1;
-			n--;
-			i--;
-		}
+    for (size_t i = 0 ; i < n ; ++i) {
+        if (fabs(pos[i].g) < DELT) {
+            r0=pos[i].r[0];
+            r1=pos[i].r[1];
+            pos[i].g=pos[n-1].g;
+            pos[i].r[0]=pos[n-1].r[0];
+            pos[i].r[1]=pos[n-1].r[1];
+            pos[n-1].g=0;
+            pos[n-1].r[0]=r0;
+            pos[n-1].r[1]=r1;
+            n--;
+            i--;
+        }
     }
-	(*s)=n;
+    (*s)=n;
 }
+
 __global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, int *COL) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i<n) {
@@ -1375,14 +1384,14 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
         TVars r0=0, r1=0, r2=0, r3=0;
         bool hitt=false;
         for(int i=0; i<quant; ++i)
-		{ 
-			
+		{
+
 			r0=A*Panel[i].left[0] + B*Panel[i].left[1] + D;
             r1=A*Panel[i].right[0] + B*Panel[i].right[1] + D;
 			if (fabs(r0)<porog_r) r0=0.0;
 			if (fabs(r1)<porog_r) r1=0.0;
             hitt=false;
-            if (r0*r1<=0) 
+            if (r0*r1<=0)
 				hitt=true;
             if (hitt)
             {
@@ -1392,31 +1401,31 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 				r2=A1*x1+B1*y1+D1;
                 r3=A1*x2+B1*y2+D1;
                 if (fabs(r2)<porog_r) r2=0.0;
-			    if (fabs(r3)<porog_r) r3=0.0;
-				
+				if (fabs(r3)<porog_r) r3=0.0;
+
 				if (r2*r3<=0)
 				{
 					hit=true;// пробила!
                     TVars d2=(x2-(B*D1-D*B1)/(A*B1-B*A1))*(x2-(B*D1-D*B1)/(A*B1-B*A1))+(y2-(A1*D-D1*A)/(A*B1-B*A1))*(y2-(A1*D-D1*A)/(A*B1-B*A1)); 
-					if (d2<minDist) 
+					if (d2<minDist)
 					{
 						minDist=d2;
 						minN=i;
 					}//if d2
 				}//if r2*r3
-			}//if hitt                              
+			}//if hitt
 		}//for i=0;i<Profile[prf].n
 	}; //if hit
 
 	hitpan[0]=minN;
 	return hit;
-	
+
 }//hitting
 
 
-__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v) {
-    int i= blockIdx.x * blockDim.x + threadIdx.x;
-if ( i < 500 ) {
+__global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, Vortex *Contr_points, PVortex *V, unsigned n_contr) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if ( i < n_contr ) {
         float y0 = 0.0f, y1 = 0.0f;
 //        TVars dist2;
         float mnog = 0.0f;
@@ -1428,8 +1437,8 @@ if ( i < 500 ) {
         __shared__ float b_sh_1 [BLOCK_SIZE];
 // интенсивность воздействующей точки
         __shared__ float g [BLOCK_SIZE];
-        a0 = (float)Contr_points[i].v[0];
-        a1 = (float)Contr_points[i].v[1];
+        a0 = (float)Contr_points[i].r[0];
+        a1 = (float)Contr_points[i].r[1];
         for (int f = 0 ; f < n ; f += BLOCK_SIZE) {
             b_sh_0[threadIdx.x] = (float)pos[threadIdx.x+f].r[0];
             b_sh_1[threadIdx.x] = (float)pos[threadIdx.x+f].r[1];
@@ -1447,12 +1456,18 @@ if ( i < 500 ) {
             }//j
             __syncthreads();
         }//f
-        V[i + (*n_v)].v[0] = ( (TVars)y0 )/(2*M_PI) + (*V_inf)[0];
-        V[i + (*n_v)].v[1] = ( (TVars)y1 )/(2*M_PI) + (*V_inf)[1];
+        V[i].v[0] = ( (TVars)y0 )/(2*M_PI) + (*V_inf)[0];
+        V[i].v[1] = ( (TVars)y1 )/(2*M_PI) + (*V_inf)[1];
 //        V[i].v[k] =  (*V_inf)[k];
-        __syncthreads();
-        if (i == 1) {
-            (*n_v) += 500;
-        }
+    }
+}
+
+
+__global__ void second_speed_Kernel( PVortex *v_env, PVortex *V, unsigned n_contr) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if ( i < n_contr ) {
+        float2 v_prev = make_float2( V[i].v[0], V[i].v[1] );
+        V[i].v[0] = ( v_env[i].v[0] - v_prev.x ) / rel_t * dt + v_prev.x;
+        V[i].v[1] = ( v_env[i].v[1] - v_prev.y ) / rel_t * dt + v_prev.y;
     }
 }

@@ -107,12 +107,13 @@ struct conf_t {
     TVars dt;
     size_t inc_step;
     TVars viscosity, rho;
-    TVctr v_inf;
+    TVars v_inf_x;
+    TVars v_inf_y;
     size_t n_of_points;
     TVars x_max, x_min, y_max, y_min;
-    float ve_size;
+    TVars ve_size;
     size_t n_col;
-    size_t h_col_x, h_col_y;
+    TVars h_col_x, h_col_y;
     TVars rc_x;
     TVars rc_y;
     char pr_file[256];
@@ -125,8 +126,14 @@ struct conf_t {
     char config_file[256];
     uint8_t log_level;
     char timings_file[256];
+    char kadr_file[256];
+    char second_points_file[256];
+    TVars rel_t;
+    unsigned steady_flow;
+#ifndef NO_TREE
     size_t tree_depth;
-    float theta;
+    TVars theta;
+#endif // NO_TREE
 };
 
 #endif // DEFINITIONS_H_

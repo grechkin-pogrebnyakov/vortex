@@ -22,6 +22,10 @@ TVars *matr_creation(tPanel *panels, size_t s, size_t birth);
 // Загрузка матрицы
 TVars   *load_matrix(size_t *p);
 
+// выделение памяти под массивы
+int allocate_arrays(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t size);
+
+int randomize_tail(Vortex **p_dev, size_t new_size, size_t increased);
 // расширение массивов
 int incr_vort_quant(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex **v_dev, TVars **d_dev, size_t *size);
 
@@ -43,7 +47,8 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
 int init_device_conf_values();
 
 //
-int velocity_control(Vortex *pos, TVctr *V_inf, int n, PVortex *Contr_points, PVortex *V, int *n_v);
+int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, Vortex *Contr_points, PVortex *V, size_t n_contr);
+int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVortex *v_second, PVortex *v_env, size_t *n_second, tPanel *panels);
 
 #ifdef __cplusplus
 }

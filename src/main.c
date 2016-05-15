@@ -27,15 +27,40 @@ TVars       *M_device = NULL;                   // "матрица формы" (
 TVars       *d_g_device = NULL;                 // суммарная интенсивность "убитых" ВЭ (device)
 PVortex     *V_contr_device = NULL;             // скорости в контрольных точках (device)
 PVortex     *V_contr_host = NULL;               // скорости в контрольных точках (host)
-PVortex     *Contr_points_device = NULL;        // контрольные точки для скорости (device)
-PVortex     *Contr_points_host = NULL;          // контрольные точки для скорости (host)
+Vortex     *Contr_points_device = NULL;        // контрольные точки для скорости (device)
+Vortex     *Contr_points_host = NULL;          // контрольные точки для скорости (host)
 PVortex     *F_p_device = NULL;                 // главный вектор сил давления (device)
 TVars       *Momentum_device = NULL;            // момент сил (device)
 tPanel      *panels_host = NULL;                // массив панелей (host)
 tPanel      *panels_device = NULL;              // массив панелей (device)
+PVortex     *V_second_device = NULL;            // скорости второго компонента (device)
+PVortex     *V_env_device = NULL;            // скорости второго компонента (device)
+Vortex     *POS_second_device = NULL;          // координаты точек примеси (device)
+Vortex     *POS_second_host = NULL;            // координаты точек примеси (host)
 FILE *log_file = NULL;
 FILE *timings_file = NULL;
 cudaError_t cuda_error = cudaSuccess;
+
+#define LOAD_UINT_CONF_PARAM( param ) \
+    if( !_strncmp( buf, #param " ") ) { \
+        sscanf( buf, "%*s %zu", &conf.param ); \
+        log_d(#param " = %zu", conf.param); \
+    }
+#define LOAD_FLOAT_CONF_PARAM( param ) \
+    if( !_strncmp( buf, #param " ") ) { \
+        sscanf( buf, "%*s %lf", &conf.param ); \
+        log_d(#param " = %lf", conf.param); \
+    }
+#define LOAD_BOOL_CONF_PARAM( param ) \
+    if( !_strncmp( buf, #param " ") ) { \
+        sscanf( buf, "%*s %u", &conf.param ); \
+        log_d(#param " = %u", conf.param); \
+    }
+#define LOAD_STR_CONF_PARAM( param ) \
+    if( !_strncmp( buf, #param " ") ) { \
+            sscanf( buf, "%*s %s", conf.param ); \
+            log_d("pr_file = %s", conf.param); \
+        }
 
 static int read_config( const char *fname ) {
     FILE *conf_f = fopen( fname, "r" );
@@ -45,101 +70,39 @@ static int read_config( const char *fname ) {
     }
     char buf[236];
     while ( fgets( buf, sizeof(buf), conf_f ) ) {
-        if( !_strncmp( buf, "steps " ) ) {
-            sscanf( buf, "%*s %zu", &conf.steps);
-            log_d("steps = %zu", conf.steps);
-        }
-        else if( !_strncmp( buf, "saving_step ") ) {
-            sscanf( buf, "%*s %zu", &conf.saving_step );
-            log_d("saving_step = %zu", conf.saving_step);
-        }
-        else if( !_strncmp( buf, "dt ") ) {
-            sscanf( buf, "%*s %lf", &conf.dt );
-            log_d("dt = %lf", conf.dt);
-        }
-        else if( !_strncmp( buf, "v_inf_incr_steps ") ) {
-            sscanf( buf, "%*s %zu", &conf.v_inf_incr_steps );
-            log_d("v_inf_incr_steps = %zu", conf.v_inf_incr_steps);
-        }
-        else if( !_strncmp( buf, "increment_step ") ) {
-            sscanf( buf, "%*s %zu", &conf.inc_step );
-            log_d("increment_step = %zu", conf.inc_step);
-        }
-        else if( !_strncmp( buf, "viscosity ") ) {
-            sscanf( buf, "%*s %lf", &conf.viscosity );
-            log_d("viscosity = %lf", conf.viscosity);
-        }
-        else if( !_strncmp( buf, "rho ") ) {
-            sscanf( buf, "%*s %lf", &conf.rho );
-            log_d("rho = %lf", conf.rho);
-        }
-        else if( !_strncmp( buf, "v_inf_x ") ) {
-            sscanf( buf, "%*s %lf", &(conf.v_inf[0]) );
-            log_d("v_inf_x = %lf", conf.v_inf[0]);
-        }
-        else if( !_strncmp( buf, "v_inf_y ") ) {
-            sscanf( buf, "%*s %lf", &(conf.v_inf[1]) );
-            log_d("v_inf_y = %lf", conf.v_inf[1]);
-        }
-        else if( !_strncmp( buf, "n_of_points ") ) {
-            sscanf( buf, "%*s %zu", &conf.n_of_points );
-        }
-        else if( !_strncmp( buf, "x_max ") ) {
-            sscanf( buf, "%*s %lf", &conf.x_max );
-        }
-        else if( !_strncmp( buf, "x_min ") ) {
-            sscanf( buf, "%*s %lf", &conf.x_min );
-        }
-        else if( !_strncmp( buf, "y_max ") ) {
-            sscanf( buf, "%*s %lf", &conf.y_max );
-        }
-        else if( !_strncmp( buf, "y_min ") ) {
-            sscanf( buf, "%*s %lf", &conf.y_min );
-        }
-        else if( !_strncmp( buf, "ve_size ") ) {
-            sscanf( buf, "%*s %f", &conf.ve_size );
-        }
-        else if( !_strncmp( buf, "n_col ") ) {
-            sscanf( buf, "%*s %zu", &conf.n_col );
-        }
-        else if( !_strncmp( buf, "h_col_x ") ) {
-            sscanf( buf, "%*s %zu", &conf.h_col_x );
-        }
-        else if( !_strncmp( buf, "h_col_y ") ) {
-            sscanf( buf, "%*s %zu", &conf.h_col_y );
-        }
-        else if( !_strncmp( buf, "rc_x ") ) {
-            sscanf( buf, "%*s %lf", &(conf.rc_x) );
-        }
-        else if( !_strncmp( buf, "rc_y ") ) {
-            sscanf( buf, "%*s %lf", &(conf.rc_y) );
-        }
-        else if( !_strncmp( buf, "pr_file ") ) {
-            sscanf( buf, "%*s %s", conf.pr_file );
-        }
-        else if( !_strncmp( buf, "timings_file ") ) {
-            sscanf( buf, "%*s %s", conf.timings_file );
-        }
-        else if( !_strncmp( buf, "r_col_different_signs_ve ") ) {
-            sscanf( buf, "%*s %lf", &conf.r_col_diff_sign );
-        }
-        else if( !_strncmp( buf, "r_col_same_sign_ve ") ) {
-            sscanf( buf, "%*s %lf", &conf.r_col_same_sign );
-        }
-        else if( !_strncmp( buf, "matrix_load ") ) {
-            sscanf( buf, "%*s %u", &conf.matrix_load );
-        }
-        else if( !_strncmp( buf, "max_ve_g ") ) {
-            sscanf( buf, "%*s %lf", &conf.max_ve_g );
-        }
+        LOAD_STR_CONF_PARAM(pr_file)
+        else LOAD_STR_CONF_PARAM(timings_file)
+        else LOAD_STR_CONF_PARAM(kadr_file)
+        else LOAD_STR_CONF_PARAM(second_points_file)
+        else LOAD_UINT_CONF_PARAM(steps)
+        else LOAD_UINT_CONF_PARAM(saving_step)
+        else LOAD_FLOAT_CONF_PARAM(dt)
+        else LOAD_UINT_CONF_PARAM(v_inf_incr_steps)
+        else LOAD_UINT_CONF_PARAM(inc_step)
+        else LOAD_FLOAT_CONF_PARAM(viscosity)
+        else LOAD_FLOAT_CONF_PARAM(rho)
+        else LOAD_FLOAT_CONF_PARAM(v_inf_x)
+        else LOAD_FLOAT_CONF_PARAM(v_inf_y)
+        else LOAD_UINT_CONF_PARAM(n_of_points)
+        else LOAD_FLOAT_CONF_PARAM(x_max)
+        else LOAD_FLOAT_CONF_PARAM(x_min)
+        else LOAD_FLOAT_CONF_PARAM(y_max)
+        else LOAD_FLOAT_CONF_PARAM(y_min)
+        else LOAD_FLOAT_CONF_PARAM(ve_size)
+        else LOAD_UINT_CONF_PARAM(n_col)
+        else LOAD_FLOAT_CONF_PARAM(h_col_x)
+        else LOAD_FLOAT_CONF_PARAM(h_col_y)
+        else LOAD_FLOAT_CONF_PARAM(rc_x)
+        else LOAD_FLOAT_CONF_PARAM(rc_y)
+        else LOAD_FLOAT_CONF_PARAM(r_col_diff_sign)
+        else LOAD_FLOAT_CONF_PARAM(r_col_same_sign)
+        else LOAD_BOOL_CONF_PARAM(matrix_load)
+        else LOAD_FLOAT_CONF_PARAM(max_ve_g)
+        else LOAD_FLOAT_CONF_PARAM(rel_t)
+        else LOAD_BOOL_CONF_PARAM(steady_flow)
 #ifndef NO_TREE
-        else if( !_strncmp( buf, "tree_depth ") ) {
-            sscanf( buf, "%*s %zu", &conf.tree_depth );
-            log_d("tree_depth = %zu", conf.tree_depth);
-        }
-        else if( !_strncmp( buf, "theta ") ) {
-            sscanf( buf, "%*s %f", &conf.theta );
-        }
+        else LOAD_UINT_CONF_PARAM(tree_depth)
+        else LOAD_FLOAT_CONF_PARAM(theta)
 #endif // NO_TREE
     }
     fclose( conf_f );
@@ -158,15 +121,19 @@ static void mem_clear() {
     cudaFree( F_p_device );
     cudaFree( Momentum_device );
     cudaFree( panels_device );
+    cudaFree( V_second_device );
+    cudaFree( V_env_device );
+    cudaFree( POS_second_device );
     cudaDeviceReset();
     free( POS_host );
     free( VEL_host );
     free( Contr_points_host );
     free( V_contr_host );
     free( panels_host );
+    free( POS_second_host );
 }
 
-static void save_contr_vels( PVortex *contr_points, PVortex *v_contr, int _step ) {
+static void save_contr_vels( Vortex *contr_points, PVortex *v_contr, int _step ) {
     if( !contr_points || !v_contr )
         return;
     char fname1[] = "output/vels/contr_Vel";
@@ -189,11 +156,40 @@ static void save_contr_vels( PVortex *contr_points, PVortex *v_contr, int _step 
         log_e("error file opening %s : %s", fname, strerror(errno) );
     } else {
         for (size_t i = 0; i < (500 * conf.saving_step); ++i) {
-            fprintf( outfile, "%zu %lf %lf %lf %lf\n", i, contr_points[i%500].v[0], contr_points[i%500].v[1], v_contr[i].v[0], v_contr[i].v[1] );
+            fprintf( outfile, "%zu %lf %lf %lf %lf\n", i, contr_points[i%500].r[0], contr_points[i%500].r[1], v_contr[i].v[0], v_contr[i].v[1] );
         }//for i
         fclose(outfile);
     }
 }
+
+static void save_to_file_second(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
+    char fname1[] = "output/second/Kadr";
+    char fname2[] = ".txt";
+    char fzero[] = "0";
+    char fstep[6];
+    char fname[ sizeof(fname1) + 10 ];
+    fname[0] = '\0';
+    itoaxx(_step,fstep,10);
+    strcat(fname,fname1);
+    if (_step<10) strcat(fname,fzero);
+    if (_step<100) strcat(fname,fzero);
+    if (_step<1000) strcat(fname,fzero);
+    if (_step<10000) strcat(fname,fzero);
+    if (conf.steps >= 10000 && _step<100000) strcat(fname,fzero);
+    strcat(fname,fstep);
+    strcat(fname,fname2);
+    FILE *outfile = fopen(fname, "w");
+    if( !outfile ) {
+        log_e("error file opening %s : %s", fname, strerror(errno) );
+        return;
+    }
+    log_i( "Output %d", _step );
+    fprintf( outfile, "%zu\n", size );
+    for (size_t i = 0; i < size; ++i) {
+        fprintf( outfile, "%zu %lf %lf %lf %lf %lf %lf %lf\n", i, Psp.eps, POS[i].r[0], POS[i].r[1], 0.0, 0.0, 0.0, POS[i].g );
+    }//for i
+    fclose(outfile);
+} //save_to_file
 
 static void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
     char fname1[] = "output/kadrs/Kadr";
@@ -223,6 +219,21 @@ static void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
     }//for i
     fclose(outfile);
 } //save_to_file
+
+static void load_from_file(char *fname, Vortex **POS, size_t *size) {
+    FILE *infile = fopen(fname, "r");
+    if( !infile ) {
+        log_e("error file opening %s : %s", fname, strerror(errno) );
+        return;
+    }
+    log_i( "load from file %s", fname );
+    fscanf( infile, "%zu\n", size );
+    *POS = (Vortex*)malloc((*size) * sizeof(Vortex));
+    for (size_t i = 0; i < (*size); ++i) {
+        fscanf( infile, "%*u %*f %lf %lf %*f %*f %*f %lf\n", &((*POS)[i].r[0]), &((*POS)[i].r[1]), &((*POS)[i].g) );
+    }//for i
+    fclose(infile);
+} //load_from_file
 
 void save_forces(PVortex F_p, TVars M, int step) {
     static FILE *outfile = NULL;
@@ -384,7 +395,8 @@ static int create_dir(const char *dir_name) {
     } else if (!S_ISDIR(st.st_mode)) {
         log_e("%s is not directory", dir_name);
         return -1;
-    }
+    } else
+        log_d("directory %s exists", dir_name);
     return 0;
 }
 
@@ -394,6 +406,8 @@ static int create_output_dirs() {
     if (create_dir("output/kadrs"))
         return -1;
     if (create_dir("output/vels"))
+        return -1;
+    if (create_dir("output/second"))
         return -1;
     return 0;
 }
@@ -408,6 +422,7 @@ int main( int argc, char **argv ) {
     int         err = 0;                            // обработка ошибок
     PVortex     F_p_host = {0.0, 0.0};                           // главный вектор сил давления (host)
     TVars       Momentum_host = 0.0;                // момент сил (host)
+    size_t n_of_second = 0;
 
 
 // расширенное количество рождаемых ВЭ
@@ -470,35 +485,59 @@ int main( int argc, char **argv ) {
         }
     }
 
+    if( *(conf.second_points_file) ) {
+        if( !conf.rel_t ) {
+            log_e("rel_t is nessesary if second component set");
+            exit(1);
+        }
+        Vortex *tmp = NULL;
+        load_from_file(conf.second_points_file, &tmp, &n_of_second);
+        log_d("n_of_second = %u", n_of_second);
+
+        POS_second_host = (Vortex*)malloc( sizeof(Vortex) * n_of_second );
+        memcpy( POS_second_host, tmp, n_of_second * sizeof(Vortex) );
+        cuda_safe( cudaMalloc( (void**)&V_second_device, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMemset( V_second_device, 0, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMalloc( (void**)&V_env_device, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMemset( V_env_device, 0, n_of_second * sizeof(PVortex) ) );
+        cuda_safe( cudaMalloc( (void**)&POS_second_device, n_of_second * sizeof(Vortex) ) );
+        cuda_safe( cudaMemcpy( POS_second_device, POS_second_host, n_of_second * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+
+        free(tmp);
+    } else if( conf.steady_flow ){
+        log_e("steady_flow and no second component");
+        exit(1);
+    }
+
 // количество ВЭ
     n = 0;
 
 // размер массива ВЭ
     size = 0;
+
     Psp.eps = 0.008;
 
 //-----------------------------------------------------------------------------------------------------------------------------
     // Вычисление скоростей при x = 0.35
-    Contr_points_host = (PVortex*)malloc( sizeof(PVortex) * 500 );
+    Contr_points_host = (Vortex*)malloc( sizeof(Vortex) * 500 );
     for (int i = 0; i < 500; ++i) {
-        Contr_points_host[i].v[1] = 0.01 + 0.002 * i;
-        Contr_points_host[i].v[0] = -0.15;
+        Contr_points_host[i].r[1] = 0.01 + 0.002 * i;
+        Contr_points_host[i].r[0] = -0.15;
+        Contr_points_host[i].g = 0.0;
     }
 
     V_contr_host = (PVortex*)malloc( sizeof(PVortex) * 500 * conf.saving_step );
     memset(V_contr_host, 0, sizeof(PVortex) * 500 *conf.saving_step );
     cuda_safe( cudaMalloc( (void**)&V_contr_device, 500 * conf.saving_step * sizeof(PVortex) ) );
-    cuda_safe( cudaMalloc( (void**)&Contr_points_device, 500 * sizeof(PVortex) ) );
-    cuda_safe( cudaMemcpy( Contr_points_device, Contr_points_host, 500 * sizeof(PVortex), cudaMemcpyHostToDevice ) );
-    int v_n_host = 0;
-    int *v_n_device = NULL;
-    cuda_safe( cudaMalloc( (void**)&v_n_device, sizeof(int) ) );
-    cuda_safe( cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMalloc( (void**)&Contr_points_device, 500 * sizeof(Vortex) ) );
+    cuda_safe( cudaMemcpy( Contr_points_device, Contr_points_host, 500 * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+    PVortex *V_contr_tmp = NULL;
 
     F_p_host.v[0] = 0.0;
     F_p_host.v[1] = 0.0;
 
     // выделение памяти и копирование на device
+    TVctr v_inf = {conf.v_inf_x, conf.v_inf_y};
 
     cuda_safe( cudaMalloc( (void**)&V_inf_device, sizeof(TVctr) ) );
     cuda_safe( cudaMalloc( (void**)&d_g_device, sizeof(TVars) ) );
@@ -506,7 +545,7 @@ int main( int argc, char **argv ) {
     cuda_safe( cudaMalloc( (void**)&F_p_device, sizeof(PVortex) ) );
     cuda_safe( cudaMalloc( (void**)&M_device, (birth+1) * (birth+1) * sizeof(TVars) ) );
     cuda_safe( cudaMalloc( (void**)&panels_device, birth * sizeof(tPanel) ) );
-    cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+    cuda_safe( cudaMemcpy( V_inf_device, &v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
     cuda_safe( cudaMemcpy( d_g_device, &TVarsZero, sizeof(TVars), cudaMemcpyHostToDevice ) );
     cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host, sizeof(TVars), cudaMemcpyHostToDevice ) );
     cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
@@ -517,31 +556,50 @@ int main( int argc, char **argv ) {
     free( M );
     log_i( "dt = %lf", conf.dt );
 
-    // увеличение массива ВЭ на INCR_STEP элементов
-    err = incr_vort_quant( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, &size );
-    if (err != 0)
-    {
-        log_e( "Increase ERROR!" );
-        mem_clear();
-        return 1;
+    if( *(conf.kadr_file) ) {
+        log_d("load kadr file");
+        Vortex *tmp = NULL;
+        load_from_file(conf.kadr_file, &tmp, &n);
+        float rashirenie = (float)(n) / (float)(conf.inc_step);
+        size = (size_t)( conf.inc_step * ceil(rashirenie) );
+        allocate_arrays( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, size );
+        randomize_tail( &POS_device, size, size );
+        memcpy( POS_host, tmp, n * sizeof(Vortex) );
+        cuda_safe( cudaMemcpy( POS_device, POS_host, n * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+        free(tmp);
+    } else {
+        // увеличение массива ВЭ на INCR_STEP элементов
+        err = incr_vort_quant( &POS_host, &POS_device, &VEL_host, &VEL_device, &d_device, &size );
+        if (err != 0)
+        {
+            log_e( "Increase ERROR!" );
+            mem_clear();
+            return 1;
+        }
     }
+
     float creation_time = 0.0;
     float speed_time = 0.0;
     float step_time = 0.0;
     cudaEvent_t start = 0, stop = 0;
 //------------------------------------------------------------------------------------------
-    TVars d_V_inf = conf.v_inf[0] / (TVars)conf.v_inf_incr_steps;
-    log_d( "delta V = %lf", d_V_inf );
-    conf.v_inf[0] = 0.0;
-    cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+    TVctr d_V_inf = {0.0, 0.0};
+    if( conf.v_inf_incr_steps ) {
+        d_V_inf[0] = conf.v_inf_x / (TVars)conf.v_inf_incr_steps;
+        d_V_inf[1] = conf.v_inf_y / (TVars)conf.v_inf_incr_steps;
+        log_d( "delta V = (%lf, %lf)", d_V_inf[0], d_V_inf[1] );
+        v_inf[0] = v_inf[1] = 0.0;
+        cuda_safe( cudaMemcpy( V_inf_device, &v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+    }
 
     // цикл шагов выполнения расчётов
     for (current_step = 0; current_step < conf.steps; current_step++) {
         log_d( "step %d", current_step );
         if (current_step < conf.v_inf_incr_steps) {
-            conf.v_inf[0] += d_V_inf;
-            cuda_safe( cudaMemcpy( V_inf_device, &conf.v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
-            log_d( "increase v_inf = %lf", conf.v_inf[0] );
+            v_inf[0] += d_V_inf[0];
+            v_inf[1] += d_V_inf[1];
+            cuda_safe( cudaMemcpy( V_inf_device, &v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
+            log_d( "increase v_inf = (%lf, %lf)", v_inf[0], v_inf[1] );
         }
         // количество ВЭ на текущем шаге, увеличенное до кратности BLOCK_SIZE
         size_t s = 0;
@@ -558,102 +616,135 @@ int main( int argc, char **argv ) {
             }// if err
         }// if size
 
-        // "рождение" ВЭ
-        start = 0; stop = 0;
-        start_timer( &start, &stop );
-        err = vort_creation( POS_device, V_inf_device, conf.birth_quant, birth, n, M_device, d_g_device, panels_device );
-        creation_time += stop_timer( start, stop );
-        if (err ) {
-            log_e( "Creation ERROR!" );
-            mem_clear();
-            return 1;
-        }// if err
-        n += conf.birth_quant;
+        if (!conf.steady_flow) {
+            // "рождение" ВЭ
+            start = 0; stop = 0;
+            start_timer( &start, &stop );
+            err = vort_creation( POS_device, V_inf_device, conf.birth_quant, birth, n, M_device, d_g_device, panels_device );
+            creation_time += stop_timer( start, stop );
+            if (err ) {
+                log_e( "Creation ERROR!" );
+                mem_clear();
+                return 1;
+            }// if err
+            n += conf.birth_quant;
+        }
 
         log_t( "%d\tN = %zu\tCreation time = %f\tSpeed time = %f\tStep time = %f\n", current_step, n, creation_time, speed_time, step_time );
 
         // вывод данных в файл
         if (current_step % conf.saving_step == 0) {
             cudaDeviceSynchronize();
-            if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
-                log_e("Saving ERROR at POS copy" );
-                log_e( "n = %zu, sizeof(POS_host) = %zu, size = %zu", n, sizeof(POS_host), size );
+            if( !conf.steady_flow ) {
+                if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
+                    log_e("Saving ERROR at POS copy" );
+                    log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
+                    mem_clear();
+                    return 1;
+                }// if cuda_safe
+
+                cuda_safe( cudaMemcpy( V_contr_host, V_contr_device, 500 * conf.saving_step * sizeof(PVortex), cudaMemcpyDeviceToHost ) );
+                V_contr_tmp = V_contr_device;
+                save_contr_vels( Contr_points_host, V_contr_host, current_step );
+
+                save_to_file(POS_host, n, Psp, current_step);
+            }
+
+            if( n_of_second ) {
+                if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
+                    log_e("Saving ERROR at POS copy" );
+                    log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
+                    mem_clear();
+                    return 1;
+                }// if cuda_safe
+                save_to_file_second(POS_second_host, n_of_second, Psp, current_step);
+            }
+        }// if saving_step
+        if( n_of_second ) {
+            err = second_speed( POS_device, V_inf_device, n, POS_second_device, V_second_device, V_env_device, &n_of_second, panels_device );
+            if (err != 0) {
+                log_e( "second Speed evaluation ERROR!" );
+                mem_clear();
+                return 1;
+            }
+        }
+
+        if( !conf.steady_flow ) {
+            velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_tmp, 500);
+            V_contr_tmp += 500;
+            if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+                log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", current_step, &F_p_host, F_p_device );
                 mem_clear();
                 return 1;
             }// if cuda_safe
-//////////////////////////////////////////////////////////////////////////
+            if( cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost ) ) ) {
+                log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", current_step, &Momentum_host, Momentum_device );
+                mem_clear();
+                return 1;
+            }// if cuda_safe
 
+            save_forces(F_p_host, Momentum_host, current_step);
+            // расчёт скоростей
+            start = 0; stop = 0;
+            start_timer( &start, &stop );
+            err = Speed( POS_device, V_inf_device, s, VEL_device, d_device, conf.viscosity, panels_device );
+            if (err != 0) {
+                log_e( "Speed evaluation ERROR!" );
+                mem_clear();
+                return 1;
+            }
+            speed_time += stop_timer(start, stop);
+            F_p_host.v[0] = 0.0;
+            F_p_host.v[1] = 0.0;
+            Momentum_host = 0.0;
+            cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
+            cuda_safe( cudaMemcpy( d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice ) );
+            cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice ) );
+            // перемещение ВЭ
+            start = 0; stop = 0;
+            start_timer( &start, &stop );
+            err = Step( POS_device, VEL_device, &n, s, d_g_device, F_p_device , Momentum_device, panels_device );
+            if (err != 0) {
+                log_e( "Moving ERROR!" );
+                mem_clear();
+                return 1;
+            }
+            step_time += stop_timer( start, stop );
+        }
+    }// for current_step
+    log_t( "%d\tN = %zu\tCreation time = %f\tSpeed time = %f\tStep time = %f\n", conf.steps, n, creation_time, speed_time, step_time );
+    if( !conf.steady_flow ) {
+        cuda_safe( cudaMemcpy( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
+        if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
+            log_e("Saving ERROR at POS copy" );
+            log_e( "n = %zu, POS_host = %p, size = %zu", n, POS_host, size );
+            mem_clear();
+            return 1;
+        }// if cuda_safe
+        save_to_file( POS_host, n,  Psp, conf.steps );
 
-            cuda_safe( cudaMemcpy( V_contr_host, V_contr_device, 500 * conf.saving_step * sizeof(PVortex), cudaMemcpyDeviceToHost ) );
-            cuda_safe( cudaMemcpy( v_n_device, &v_n_host, sizeof(int), cudaMemcpyHostToDevice ) );
-            save_contr_vels( Contr_points_host, V_contr_host, current_step );
-
-
-//////////////////////////////////////////////////////////////////////////
-
-            save_to_file(POS_host, n, Psp, current_step);
-        }// if saving_step
-        velocity_control(POS_device, V_inf_device, n, Contr_points_device, V_contr_device, v_n_device);
         if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
-            log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", current_step, &F_p_host, F_p_device );
+            log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", conf.steps, &F_p_host, F_p_device );
             mem_clear();
             return 1;
         }// if cuda_safe
         if( cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost ) ) ) {
-            log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", current_step, &Momentum_host, Momentum_device );
+            log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", conf.steps, &Momentum_host, Momentum_device );
             mem_clear();
             return 1;
         }// if cuda_safe
-        save_forces(F_p_host, Momentum_host, current_step);
+        save_forces(F_p_host, Momentum_host, conf.steps);
+    }
 
-        // расчёт скоростей
-        start = 0; stop = 0;
-        start_timer( &start, &stop );
-        err = Speed( POS_device, V_inf_device, s, VEL_device, d_device, conf.viscosity, panels_device );
-        if (err != 0) {
-            log_e( "Speed evaluation ERROR!" );
+    if( n_of_second ) {
+        if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
+            log_e("Saving ERROR at POS copy" );
+            log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
             mem_clear();
             return 1;
-        }
-        speed_time += stop_timer(start, stop);
-        F_p_host.v[0] = 0.0;
-        F_p_host.v[1] = 0.0;
-        Momentum_host = 0.0;
-        cuda_safe( cudaMemcpy( F_p_device, &F_p_host , sizeof(PVortex), cudaMemcpyHostToDevice ) );
-        cuda_safe( cudaMemcpy( d_g_device, &TVarsZero , sizeof(TVars), cudaMemcpyHostToDevice ) );
-        cuda_safe( cudaMemcpy( Momentum_device, &Momentum_host , sizeof(TVars), cudaMemcpyHostToDevice ) );
-        // перемещение ВЭ
-        start = 0; stop = 0;
-        start_timer( &start, &stop );
-        err = Step( POS_device, VEL_device, &n, s, d_g_device, F_p_device , Momentum_device, panels_device );
-        if (err != 0) {
-            log_e( "Moving ERROR!" );
-            mem_clear();
-            return 1;
-        }
-        step_time += stop_timer( start, stop );
-    }// for current_step
-    log_t( "%d\tN = %zu\tCreation time = %f\tSpeed time = %f\tStep time = %f\n", conf.steps, n, creation_time, speed_time, step_time );
-    cuda_safe( cudaMemcpy( POS_host , POS_device , n  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
-    if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
-        log_e("Saving ERROR at POS copy" );
-        log_e( "n = %zu, sizeof(POS_host) = %zu, size = %zu", n, sizeof(POS_host), size );
-        mem_clear();
-        return 1;
-    }// if cuda_safe
-    save_to_file( POS_host, n,  Psp, conf.steps );
-
-    if( cuda_safe( cudaMemcpy( &F_p_host, F_p_device, sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
-        log_e( "Saving ERROR at F_p copy, step =  %d F_p_host = %p F_p_device = %p", conf.steps, &F_p_host, F_p_device );
-        mem_clear();
-        return 1;
-    }// if cuda_safe
-    if( cuda_safe( cudaMemcpy( &Momentum_host, Momentum_device, sizeof(TVars), cudaMemcpyDeviceToHost ) ) ) {
-        log_e( "Saving ERROR Momentum copy, step = %d M_host = %p M_device = %p", conf.steps, &Momentum_host, Momentum_device );
-        mem_clear();
-        return 1;
-    }// if cuda_safe
-    save_forces(F_p_host, Momentum_host, conf.steps);
+        }// if cuda_safe
+        save_to_file_second(POS_second_host, n_of_second, Psp, conf.steps);
+    }
     // вывод в файл последнего шага
     log_i( "ready!" );
     mem_clear();
