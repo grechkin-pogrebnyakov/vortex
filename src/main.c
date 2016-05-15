@@ -186,7 +186,7 @@ static void save_to_file_second(Vortex *POS, size_t size, Eps_Str Psp, int _step
     log_i( "Output %d", _step );
     fprintf( outfile, "%zu\n", size );
     for (size_t i = 0; i < size; ++i) {
-        fprintf( outfile, "%zu %lf %lf %lf %lf %lf %lf %lf\n", i, Psp.eps, POS[i].r[0], POS[i].r[1], 0.0, 0.0, 0.0, 100.0 );
+        fprintf( outfile, "%zu %lf %lf %lf %lf %lf %lf %lf\n", i, Psp.eps, POS[i].r[0], POS[i].r[1], 0.0, 0.0, 0.0, POS[i].g );
     }//for i
     fclose(outfile);
 } //save_to_file
@@ -407,6 +407,8 @@ static int create_output_dirs() {
         return -1;
     if (create_dir("output/vels"))
         return -1;
+    if (create_dir("output/second"))
+        return -1;
     return 0;
 }
 
@@ -484,10 +486,13 @@ int main( int argc, char **argv ) {
     }
 
     if( *(conf.second_points_file) ) {
+        if( !conf.rel_t ) {
+            log_e("rel_t is nessesary if second component set");
+            exit(1);
+        }
         Vortex *tmp = NULL;
         load_from_file(conf.second_points_file, &tmp, &n_of_second);
-
-        cuda_safe( cudaMemcpy( POS_device, POS_host, n_of_second * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+        log_d("n_of_second = %u", n_of_second);
 
         POS_second_host = (Vortex*)malloc( sizeof(Vortex) * n_of_second );
         memcpy( POS_second_host, tmp, n_of_second * sizeof(Vortex) );
@@ -552,6 +557,7 @@ int main( int argc, char **argv ) {
     log_i( "dt = %lf", conf.dt );
 
     if( *(conf.kadr_file) ) {
+        log_d("load kadr file");
         Vortex *tmp = NULL;
         load_from_file(conf.kadr_file, &tmp, &n);
         float rashirenie = (float)(n) / (float)(conf.inc_step);
@@ -610,17 +616,19 @@ int main( int argc, char **argv ) {
             }// if err
         }// if size
 
-        // "рождение" ВЭ
-        start = 0; stop = 0;
-        start_timer( &start, &stop );
-        err = vort_creation( POS_device, V_inf_device, conf.birth_quant, birth, n, M_device, d_g_device, panels_device );
-        creation_time += stop_timer( start, stop );
-        if (err ) {
-            log_e( "Creation ERROR!" );
-            mem_clear();
-            return 1;
-        }// if err
-        n += conf.birth_quant;
+        if (!conf.steady_flow) {
+            // "рождение" ВЭ
+            start = 0; stop = 0;
+            start_timer( &start, &stop );
+            err = vort_creation( POS_device, V_inf_device, conf.birth_quant, birth, n, M_device, d_g_device, panels_device );
+            creation_time += stop_timer( start, stop );
+            if (err ) {
+                log_e( "Creation ERROR!" );
+                mem_clear();
+                return 1;
+            }// if err
+            n += conf.birth_quant;
+        }
 
         log_t( "%d\tN = %zu\tCreation time = %f\tSpeed time = %f\tStep time = %f\n", current_step, n, creation_time, speed_time, step_time );
 
@@ -643,7 +651,7 @@ int main( int argc, char **argv ) {
             }
 
             if( n_of_second ) {
-                if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+                if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
                     log_e("Saving ERROR at POS copy" );
                     log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
                     mem_clear();
@@ -729,7 +737,7 @@ int main( int argc, char **argv ) {
     }
 
     if( n_of_second ) {
-        if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(PVortex), cudaMemcpyDeviceToHost ) ) ) {
+        if( cuda_safe( cudaMemcpy( POS_second_host, POS_second_device, n_of_second * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
             log_e("Saving ERROR at POS copy" );
             log_e( "n = %zu, POS_host = %p, size = %zu", n_of_second, POS_second_host, size );
             mem_clear();

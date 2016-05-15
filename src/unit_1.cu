@@ -481,6 +481,7 @@ int allocate_arrays(Vortex **p_host, Vortex **p_dev, PVortex **v_host, PVortex *
 }
 
 int randomize_tail(Vortex **p_dev, size_t new_size, size_t increased) {
+    log_d("randomize_tail");
     float *rnd_dev = NULL, *rnd_host = NULL;
     rnd_host = (float*)malloc( sizeof(float) * increased );
     for (int i = 0; i < increased; ++i) {
@@ -1255,6 +1256,7 @@ int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, Vortex *Contr_points, 
     size_t birth = 0;
     rash = (TVars)(n_contr) / BLOCK_SIZE;
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
+    log_d("birth = %zu", birth);
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(birth / BLOCK_SIZE);
     velocity_control_Kernel <<< blocks, threads >>> (pos, V_inf, n, Contr_points, V, n_contr);
@@ -1266,7 +1268,7 @@ int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, Vortex *Contr_points, 
 }
 
 int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVortex *v_second, PVortex *v_env, size_t *n_second, tPanel *panels) {
-    log_d("second_speed");
+    log_d("second_speed n = %zu", *n_second);
     if( velocity_control( pos, V_inf, n, second_pos, v_env, *n_second ) ) {
         return 1;
     }
@@ -1276,17 +1278,29 @@ int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVorte
             return 1;
         }
     }
+    static PVortex *VEL = NULL;
+    static Vortex *POS = NULL;
+    if( !VEL ) {
+        VEL = (PVortex*)malloc( sizeof(PVortex) * (*n_second) );
+        POS = (Vortex*)malloc( sizeof(Vortex) * (*n_second) );
+    }
+    cuda_safe( cudaMemcpy( POS  , second_pos , *n_second  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
+    cuda_safe( cudaMemcpy( VEL  , v_env , *n_second  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+    save_vel_to_file(POS, VEL, *n_second, current_step, 4);
     TVars rash = 0.0;
     size_t birth = 0;
     rash = (TVars)(*n_second) / BLOCK_SIZE;
     birth = (size_t)(BLOCK_SIZE * ceil(rash));
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(birth / BLOCK_SIZE);
+    log_d("birth = %zu", birth);
     second_speed_Kernel <<< blocks, threads >>> ( v_env, v_second, (*n_second) );
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }
+    cuda_safe( cudaMemcpy( VEL  , v_second , *n_second  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+    save_vel_to_file(POS, VEL, *n_second, current_step, 5);
     step_Kernel <<< blocks, threads >>> (second_pos, v_second, NULL, NULL, NULL, (*n_second), panels);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
@@ -1300,7 +1314,7 @@ int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVorte
         return 1;
     }//if
     log_d( "n_old =  %zu", *n_second );
-    sort_Kernel <<< dim3(1), dim3(1) >>> (second_pos,n_dev);
+    sort_Kernel <<< dim3(1), dim3(1) >>> (second_pos, n_dev);
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;

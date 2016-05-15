@@ -1085,7 +1085,7 @@ __global__ void diffusion_2_Kernel(Vortex *pos, int n, PVortex *V, TVars *d, TVa
 }
 
 __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_p, TVars *M, size_t n, tPanel *panels) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < n) {
         if( d_g_Dev )
             d_g_Dev[i] = 0.0;
@@ -1128,8 +1128,8 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
 		pos[i].r[1] = r_new_1;
 
 	    if ((pos[i].g != 0) && ((pos[i].r[0] > x_max) || (pos[i].r[0] < x_min) || (pos[i].r[1] > y_max) || (pos[i].r[1] < y_min))) {
-		    pos[i].r[0]= -2.0e+5; 
-		    pos[i].r[1]= -2.0e+5; 
+		    pos[i].r[0]= -2.0e+5;
+		    pos[i].r[1]= -2.0e+5;
 		    pos[i].g=0;
 	    }
         //__syncthreads;
@@ -1425,7 +1425,7 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, Vortex *Contr_points, PVortex *V, unsigned n_contr) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-if ( i < n_contr ) {
+    if ( i < n_contr ) {
         float y0 = 0.0f, y1 = 0.0f;
 //        TVars dist2;
         float mnog = 0.0f;
