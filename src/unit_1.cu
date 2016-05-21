@@ -1294,7 +1294,7 @@ int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVorte
     dim3 threads = dim3(BLOCK_SIZE);
     dim3 blocks  = dim3(birth / BLOCK_SIZE);
     log_d("birth = %zu", birth);
-    second_speed_Kernel <<< blocks, threads >>> ( v_env, v_second, (*n_second) );
+    second_speed_Kernel <<< blocks, threads >>> ( second_pos, v_env, v_second, (*n_second) );
     cudaDeviceSynchronize();
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
@@ -1306,23 +1306,5 @@ int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVorte
     if( cuda_safe( cudaGetLastError() ) ) {
         return 1;
     }//if
-    size_t *n_dev = NULL;
-    if( cuda_safe( cudaMalloc( (void**)&n_dev ,  sizeof(size_t) ) ) ) {
-        return 1;
-    }//if
-    if( cuda_safe( cudaMemcpy( n_dev, n_second, sizeof(size_t), cudaMemcpyHostToDevice ) ) ) {
-        return 1;
-    }//if
-    log_d( "n_old =  %zu", *n_second );
-    sort_Kernel <<< dim3(1), dim3(1) >>> (second_pos, n_dev);
-    cudaDeviceSynchronize();
-    if( cuda_safe( cudaGetLastError() ) ) {
-        return 1;
-    }//if
-    if( cuda_safe( cudaMemcpy( n_second,n_dev,sizeof(size_t), cudaMemcpyDeviceToHost ) ) ) {
-        return 1;
-    }//if
-    log_d( "n_new =  %zu", *n_second );
-    cudaFree(n_dev);
     return 0;
 }

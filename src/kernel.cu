@@ -1118,8 +1118,8 @@ __global__ void step_Kernel(Vortex *pos, PVortex *V, TVars *d_g_Dev, PVortex *F_
             }
             if( M )
                 M[i] -= pos[i].g * Ro2(panels[hitpan].contr[0], panels[hitpan].contr[1], rc_x, rc_y);
-		    r_new_0 =  2e+5;
-		    r_new_1 =  2e+5;
+		    //r_new_0 =  2e+5;
+		    //r_new_1 =  2e+5;
 		    d_g = pos[i].g;
 		    pos[i].g = 0;
 		}
@@ -1425,7 +1425,6 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, Vortex *Contr_points, PVortex *V, unsigned n_contr) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if ( i < n_contr ) {
         float y0 = 0.0f, y1 = 0.0f;
 //        TVars dist2;
         float mnog = 0.0f;
@@ -1437,35 +1436,44 @@ __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, Vortex
         __shared__ float b_sh_1 [BLOCK_SIZE];
 // интенсивность воздействующей точки
         __shared__ float g [BLOCK_SIZE];
-        a0 = (float)Contr_points[i].r[0];
-        a1 = (float)Contr_points[i].r[1];
+        if ( i < n_contr ) {
+            a0 = (float)Contr_points[i].r[0];
+            a1 = (float)Contr_points[i].r[1];
+        }
         for (int f = 0 ; f < n ; f += BLOCK_SIZE) {
             b_sh_0[threadIdx.x] = (float)pos[threadIdx.x+f].r[0];
             b_sh_1[threadIdx.x] = (float)pos[threadIdx.x+f].r[1];
             g[threadIdx.x] = (float)pos[threadIdx.x+f].g;
 
             __syncthreads();
+            if ( i < n_contr ) {
 
-            for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
-                dist2 = Ro2f(a0, a1, b_sh_0[j], b_sh_1[j]);
-//                if (dist2 < ve_size2) dist2=ve_size2;
-                dist2 = fmaxf(dist2, ve_size2);
-                mnog = g[j] / dist2;
-                y1 +=  mnog * (a0 - b_sh_0[j]);
-                y0 += -mnog * (a1 - b_sh_1[j]);
-            }//j
+                for (int j = 0 ; j < BLOCK_SIZE ; ++j) {
+                    dist2 = Ro2f(a0, a1, b_sh_0[j], b_sh_1[j]);
+    //                if (dist2 < ve_size2) dist2=ve_size2;
+                    dist2 = fmaxf(dist2, ve_size2);
+                    mnog = g[j] / dist2;
+                    y1 +=  mnog * (a0 - b_sh_0[j]);
+                    y0 += -mnog * (a1 - b_sh_1[j]);
+                }//j
+            }
             __syncthreads();
         }//f
-        V[i].v[0] = ( (TVars)y0 )/(2*M_PI) + (*V_inf)[0];
-        V[i].v[1] = ( (TVars)y1 )/(2*M_PI) + (*V_inf)[1];
+        if ( i < n_contr ) {
+            V[i].v[0] = ( (TVars)y0 )/(2*M_PI) + (*V_inf)[0];
+            V[i].v[1] = ( (TVars)y1 )/(2*M_PI) + (*V_inf)[1];
 //        V[i].v[k] =  (*V_inf)[k];
-    }
+        }
 }
 
 
-__global__ void second_speed_Kernel( PVortex *v_env, PVortex *V, unsigned n_contr) {
+__global__ void second_speed_Kernel( Vortex *POS, PVortex *v_env, PVortex *V, unsigned n_contr) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if ( i < n_contr ) {
+        if( !POS[i].g ) {
+            V[i].v[0] = 0.0; V[i].v[1] = 0.0;
+            return;
+        }
         float2 v_prev = make_float2( V[i].v[0], V[i].v[1] );
         V[i].v[0] = ( v_env[i].v[0] - v_prev.x ) / rel_t * dt + v_prev.x;
         V[i].v[1] = ( v_env[i].v[1] - v_prev.y ) / rel_t * dt + v_prev.y;

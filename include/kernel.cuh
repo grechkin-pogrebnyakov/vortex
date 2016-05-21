@@ -212,6 +212,6 @@ __device__ bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int* hitpan
 __global__ void velocity_control_Kernel(Vortex *pos, TVctr *V_inf, int n, Vortex *Contr_points, PVortex *V, unsigned n_contr);
 
 // вычисление скоростей частиц примеси
-__global__ void second_speed_Kernel( PVortex *v_env, PVortex *V, unsigned n_contr);
+__global__ void second_speed_Kernel( Vortex *POS, PVortex *v_env, PVortex *V, unsigned n_contr);
 
 #endif // KERNEL_CUH_
