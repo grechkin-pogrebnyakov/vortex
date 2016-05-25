@@ -1267,6 +1267,35 @@ int velocity_control(Vortex *pos, TVctr *V_inf, size_t n, Vortex *Contr_points, 
     return 0;
 }
 
+int first_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVortex *v_second, size_t *n_second, tPanel *panels) {
+    log_d("first_speed n = %zu", *n_second);
+    if( velocity_control( pos, V_inf, n, second_pos, v_second, *n_second ) ) {
+        return 1;
+    }
+    static PVortex *VEL = NULL;
+    static Vortex *POS = NULL;
+    if( !VEL ) {
+        VEL = (PVortex*)malloc( sizeof(PVortex) * (*n_second) );
+        POS = (Vortex*)malloc( sizeof(Vortex) * (*n_second) );
+    }
+    cuda_safe( cudaMemcpy( POS  , second_pos , *n_second  * sizeof(Vortex) , cudaMemcpyDeviceToHost ) );
+    TVars rash = 0.0;
+    size_t birth = 0;
+    rash = (TVars)(*n_second) / BLOCK_SIZE;
+    birth = (size_t)(BLOCK_SIZE * ceil(rash));
+    dim3 threads = dim3(BLOCK_SIZE);
+    dim3 blocks  = dim3(birth / BLOCK_SIZE);
+    log_d("birth = %zu", birth);
+    cuda_safe( cudaMemcpy( VEL  , v_second , *n_second  * sizeof(PVortex) , cudaMemcpyDeviceToHost ) );
+    save_vel_to_file(POS, VEL, *n_second, current_step, 5);
+    step_Kernel <<< blocks, threads >>> (second_pos, v_second, NULL, NULL, NULL, (*n_second), panels);
+    cudaDeviceSynchronize();
+    if( cuda_safe( cudaGetLastError() ) ) {
+        return 1;
+    }//if
+    return 0;
+}
+
 int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVortex *v_second, PVortex *v_env, size_t *n_second, tPanel *panels) {
     log_d("second_speed n = %zu", *n_second);
     if( velocity_control( pos, V_inf, n, second_pos, v_env, *n_second ) ) {
