@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 import sys
 n_of_points = 101
 n_of_lines = 5
-x = -0.56
+x = -1.5
 if len(sys.argv) > 1:
     x = float(sys.argv[1])
 y_min = -2.0

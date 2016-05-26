@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+import os
+import matplotlib
+disp = os.environ.get('DIAPLAY')
+if disp is None or disp == '':
+    matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import os.path
@@ -37,7 +43,7 @@ start = arguments.get('start')
 fnames = [[],[]]
 i = start
 while True:
-    fname = "Kadr0%04d.txt" % i
+    fname = "Kadr0%05d.txt" % i
     first_path = folder[0] + fname
     second_path = folder[1] + fname
     if (not os.path.exists(first_path)) or (not os.path.exists(second_path)):
@@ -49,7 +55,7 @@ while True:
 print "got %u frames" % len(fnames[0])
 
 fig = plt.figure()
-#fig.set_figwidth(10.67)
+fig.set_figwidth(10.67)
 #fig.set_figwidth(10)
 #fig.set_size_inches(12, 6)
 ax = plt.axes(xlim=(-2, 10), ylim=(-3, 3) )
