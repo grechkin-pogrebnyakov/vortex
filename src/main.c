@@ -16,6 +16,7 @@
 
 struct conf_t conf;
 int current_step = 0;
+int first_step = 0;
 size_t      n = 0;                              // количество ВЭ
 PVortex     *VEL_host = NULL;                   // скорости ВЭ (host)
 PVortex     *VEL_device = NULL;                 // скорости ВЭ (device)
@@ -56,8 +57,8 @@ cudaError_t cuda_error = cudaSuccess;
     }
 #define LOAD_BOOL_CONF_PARAM( param ) \
     if( !_strncmp( buf, #param " ") ) { \
-        sscanf( buf, "%*s %u", &conf.param ); \
-        log_d(#param " = %u", conf.param); \
+        sscanf( buf, "%*s %" SCNu8, &conf.param ); \
+        log_d(#param " = %" PRIu8, conf.param); \
     }
 #define LOAD_STR_CONF_PARAM( param ) \
     if( !_strncmp( buf, #param " ") ) { \
@@ -107,6 +108,7 @@ static int read_config( const char *fname ) {
         else LOAD_UINT_CONF_PARAM(tree_depth)
         else LOAD_FLOAT_CONF_PARAM(theta)
 #endif // NO_TREE
+        else LOAD_BOOL_CONF_PARAM(no_log_buf)
     }
     fclose( conf_f );
     return 0;
@@ -142,21 +144,8 @@ static void mem_clear() {
 static void save_contr_vels( Vortex *contr_points, PVortex *v_contr, int _step ) {
     if( !contr_points || !v_contr )
         return;
-    char fname1[] = "output/vels/contr_Vel";
-    char fname2[] = ".txt";
-    char fzero[] = "0";
-    char fstep[6];
-    char fname[ sizeof(fname1) + 10];
-    fname[0] = '\0';
-    itoaxx(_step,fstep,10);
-    strcat(fname,fname1);
-    if (_step<10) strcat(fname,fzero);
-    if (_step<100) strcat(fname,fzero);
-    if (_step<1000) strcat(fname,fzero);
-    if (_step<10000) strcat(fname,fzero);
-    if (conf.steps >= 10000 && _step<100000) strcat(fname,fzero);
-    strcat(fname,fstep);
-    strcat(fname,fname2);
+    char fname[256];
+    snprintf(fname, sizeof(fname), "output/vels/contr_Vel%06d.txt", _step);
     FILE *outfile = fopen(fname, "w");
     if( !outfile ) {
         log_e("error file opening %s : %s", fname, strerror(errno) );
@@ -170,7 +159,7 @@ static void save_contr_vels( Vortex *contr_points, PVortex *v_contr, int _step )
 
 static void save_to_file_first_or_second(Vortex *POS, size_t size, Eps_Str Psp, int _step, char* folder_name) {
     char fname[256];
-    snprintf(fname, sizeof(fname), "output/%s/Kadr%05d.txt", folder_name, _step);
+    snprintf(fname, sizeof(fname), "output/%s/Kadr%06d.txt", folder_name, _step);
     FILE *outfile = fopen(fname, "w");
     if( !outfile ) {
         log_e("error file opening %s : %s", fname, strerror(errno) );
@@ -184,21 +173,8 @@ static void save_to_file_first_or_second(Vortex *POS, size_t size, Eps_Str Psp, 
 } //save_to_file
 
 static void save_to_file(Vortex *POS, size_t size, Eps_Str Psp, int _step) {
-    char fname1[] = "output/kadrs/Kadr";
-    char fname2[] = ".txt";
-    char fzero[] = "0";
-    char fstep[6];
-    char fname[ sizeof(fname1) + 10 ];
-    fname[0] = '\0';
-    itoaxx(_step,fstep,10);
-    strcat(fname,fname1);
-    if (_step<10) strcat(fname,fzero);
-    if (_step<100) strcat(fname,fzero);
-    if (_step<1000) strcat(fname,fzero);
-    if (_step<10000) strcat(fname,fzero);
-    if (conf.steps >= 10000 && _step<100000) strcat(fname,fzero);
-    strcat(fname,fstep);
-    strcat(fname,fname2);
+    char fname[256];
+    snprintf(fname, sizeof(fname), "output/kadrs/Kadr%06d.txt", _step);
     FILE *outfile = fopen(fname, "w");
     if( !outfile ) {
         log_e("error file opening %s : %s", fname, strerror(errno) );
@@ -251,18 +227,32 @@ static int load_profile(const char *fname, tPanel **panels, size_t *p, size_t *b
     fgets( buf, sizeof(buf), infile );
     fgets( buf, sizeof(buf), infile );
     fscanf( infile, "%zu", p );
+    log_d("profile contains %zu points", *p);
     float rash = (float)(*p) / BLOCK_SIZE;
     *birth = (size_t)(BLOCK_SIZE * ceil(rash));
     *panels = (tPanel*)malloc( sizeof(tPanel) * (*birth) );
     memset(*panels, 0, sizeof(tPanel) * (*birth) );
+    TVars x_max = conf.x_min, x_min = conf.x_max;
+    TVars y_max = conf.y_min, y_min = conf.y_max;
     for (size_t i = 0; i < *p; ++i) {
         fscanf( infile, "\n%u %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %u %u", &(*panels)[i].n, &(*panels)[i].left[0], &(*panels)[i].left[1],
                 &(*panels)[i].right[0], &(*panels)[i].right[1], &(*panels)[i].contr[0], &(*panels)[i].contr[1], &(*panels)[i].birth[0], &(*panels)[i].birth[1],
                 &(*panels)[i].norm[0], &(*panels)[i].norm[1], &(*panels)[i].tang[0], &(*panels)[i].tang[1], &(*panels)[i].length, &(*panels)[i].n_of_lpanel, &(*panels)[i].n_of_rpanel );
         if( LEV_DEBUG < conf.log_level )
             log_d( "%u", (*panels)[i].n_of_rpanel );
+        TVars xx = (*panels + i)->left[0];
+        TVars yy = (*panels + i)->left[1];
+        if( xx < x_min ) x_min = xx;
+        if( xx > x_max ) x_max = xx;
+        if( yy < y_min ) y_min = yy;
+        if( yy > y_max ) y_max = yy;
     }
     fclose( infile );
+    conf.profile_x_min = x_min;
+    conf.profile_x_max = x_max;
+    conf.profile_y_min = y_min;
+    conf.profile_y_max = y_max;
+    log_i("profile gabarites: x_min = %lf x_max = %lf y_min = %lf y_max = %lf", x_min, x_max, y_min, y_max);
 }
 
 void flush_log() {
@@ -289,7 +279,10 @@ static void set_log_file() {
         if( !log_file ) {
             log_e( "Log file %s open failed: '%s'.", conf.log_file, strerror(errno) );
         } else {
-            setvbuf( log_file, log_buf, _IOFBF, LOG_BUF_SIZ );
+            if( !conf.no_log_buf )
+                setvbuf( log_file, log_buf, _IOFBF, LOG_BUF_SIZ );
+            else
+                setvbuf( log_file, NULL, _IOLBF, 0 );
             log_a("\n\n\n\n\nnew run\n\n\n\n");
         }
     }
@@ -297,8 +290,10 @@ static void set_log_file() {
         timings_file = fopen( conf.timings_file, "w" );
         if( !timings_file ) {
             log_e( "timings file %s open failed: '%s'.", conf.timings_file, strerror(errno) );
-        } else {
+        } else if( !conf.no_log_buf ) {
             setvbuf( timings_file, timings_buf, _IOFBF, TIMINGS_BUF_SIZ );
+        } else {
+                setvbuf( timings_file, NULL, _IOLBF, 0 );
         }
     }
 }
@@ -430,8 +425,12 @@ int main( int argc, char **argv ) {
         return 1;
     log_d("ok read params");
 
+    if ( conf.log_level >= LEV_DEBUG )
+        conf.no_log_buf = 1;
+
     if ( read_config( conf.config_file ) )
         return 1;
+
     log_d("ok read config");
 
     if ( create_output_dirs() )
@@ -592,8 +591,65 @@ int main( int argc, char **argv ) {
         cuda_safe( cudaMemcpy( V_inf_device, &v_inf, sizeof(TVctr), cudaMemcpyHostToDevice ) );
     }
 
+    if( *(conf.kadr_file) ) {
+        char *fname = strstr(conf.kadr_file, "Kadr");
+        if( fname ) {
+            int file_num = 0;
+            int res = sscanf(fname + sizeof("Kadr") - 1, "%d", &file_num);
+            if( res == 1 ) {
+                current_step = file_num;
+                first_step = file_num;
+                conf.steps += current_step;
+            }
+        }
+    }
+    if( current_step && POS_second_host ) {
+        Vortex *tmp = NULL;
+        char second_points_file[256];
+        snprintf(second_points_file, sizeof(second_points_file), "output/second/Kadr%06d.txt", current_step);
+        char first_points_file[256];
+        snprintf(first_points_file, sizeof(first_points_file), "output/first/Kadr%06d.txt", current_step);
+        struct stat st = {0};
+        if (stat(second_points_file, &st) == 0 && !S_ISDIR(st.st_mode) && stat(first_points_file, &st) == 0 && !S_ISDIR(st.st_mode)) {
+            size_t new_n_of_second = 0, new_n_of_first = 0;
+            load_from_file(second_points_file, &tmp, &new_n_of_second);
+            if( new_n_of_second != n_of_second ) {
+                POS_second_host = (Vortex*)realloc( POS_second_host, sizeof(Vortex) * new_n_of_second );
+                if( V_second_device ) cudaFree( V_second_device );
+                if( V_env_device ) cudaFree( V_env_device );
+                if( POS_second_device ) cudaFree( POS_second_device );
+                cuda_safe( cudaMalloc( (void**)&V_second_device, new_n_of_second * sizeof(PVortex) ) );
+                cuda_safe( cudaMemset( V_second_device, 0, new_n_of_second * sizeof(PVortex) ) );
+                cuda_safe( cudaMalloc( (void**)&V_env_device, new_n_of_second * sizeof(PVortex) ) );
+                cuda_safe( cudaMemset( V_env_device, 0, new_n_of_second * sizeof(PVortex) ) );
+                cuda_safe( cudaMalloc( (void**)&POS_second_device, new_n_of_second * sizeof(Vortex) ) );
+            }
+            log_i("new n_of_second = %u", new_n_of_second);
+
+            memcpy( POS_second_host, tmp, new_n_of_second * sizeof(Vortex) );
+            cuda_safe( cudaMemcpy( POS_second_device, POS_second_host, new_n_of_second * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+            free(tmp);
+
+            load_from_file(first_points_file, &tmp, &new_n_of_first);
+            assert(new_n_of_first == new_n_of_second);
+            if( new_n_of_second != n_of_second ) {
+                POS_first_host = (Vortex*)realloc( POS_first_host, sizeof(Vortex) * new_n_of_second );
+                if( V_first_device ) cudaFree( V_first_device );
+                if( POS_first_device ) cudaFree( POS_first_device );
+                cuda_safe( cudaMalloc( (void**)&V_first_device, new_n_of_second * sizeof(PVortex) ) );
+                cuda_safe( cudaMemset( V_first_device, 0, new_n_of_second * sizeof(PVortex) ) );
+                cuda_safe( cudaMalloc( (void**)&POS_first_device, new_n_of_second * sizeof(Vortex) ) );
+            }
+            memcpy( POS_first_host, tmp, new_n_of_second * sizeof(Vortex) );
+            cuda_safe( cudaMemcpy( POS_first_device, POS_first_host, new_n_of_second * sizeof(Vortex), cudaMemcpyHostToDevice ) );
+            free(tmp);
+            n_of_second = new_n_of_second;
+        }
+    }
+    log_w("Start from step %u", current_step);
+    flush_log();
     // цикл шагов выполнения расчётов
-    for (current_step = 0; current_step < conf.steps; current_step++) {
+    for ( ; current_step < conf.steps; current_step++) {
         log_d( "step %d", current_step );
         if (current_step < conf.v_inf_incr_steps) {
             v_inf[0] += d_V_inf[0];
@@ -634,7 +690,7 @@ int main( int argc, char **argv ) {
 
         // вывод данных в файл
         if (current_step % conf.saving_step == 0) {
-            log_i( "Output %d", current_step );
+            log_w( "Output %d", current_step );
             cudaDeviceSynchronize();
             if( !conf.steady_flow ) {
                 if( cuda_safe( cudaMemcpy( POS_host, POS_device, n * sizeof(Vortex), cudaMemcpyDeviceToHost ) ) ) {
@@ -667,6 +723,7 @@ int main( int argc, char **argv ) {
                 }// if cuda_safe
                 save_to_file_first_or_second(POS_first_host, n_of_second, Psp, current_step, "first");
             }
+            flush_log();
         }// if saving_step
         if( n_of_second ) {
             err = second_speed( POS_device, V_inf_device, n, POS_second_device, V_second_device, V_env_device, &n_of_second, panels_device );

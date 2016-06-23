@@ -107,10 +107,12 @@ __device__ __host__ TVars N_contr_y(size_t n, size_t i);
 */
 
 __device__ __host__ inline TVars R_birth_x(tPanel *panel, size_t j) {
-    return panel[j].birth[0];
+//    return panel[j].birth[0];
+    return (panel[j].left[0] + panel[j].right[0])/2 + 1e-6 * panel[j].norm[0];
 }
 __device__ __host__ inline TVars R_birth_y(tPanel *panel, size_t j) {
-    return panel[j].birth[1];
+//    return panel[j].birth[1];
+    return (panel[j].left[1] + panel[j].right[1])/2 + 1e-6 * panel[j].norm[1];
 }
 __device__ __host__ inline TVars R_left_x(tPanel *panel, size_t j) {
     return panel[j].left[0];

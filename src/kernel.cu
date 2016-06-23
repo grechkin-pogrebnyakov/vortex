@@ -12,7 +12,6 @@
 #include "device_launch_parameters.h"
 #include "device_functions.h"
 #include "math_functions.h"
-#include <assert.h>
 
 extern __constant__ TVars dt;
 extern __constant__ size_t quant;
@@ -26,6 +25,10 @@ extern __constant__ TVars x_max;
 extern __constant__ TVars x_min;
 extern __constant__ TVars y_max;
 extern __constant__ TVars y_min;
+extern __constant__ TVars profile_x_max;
+extern __constant__ TVars profile_x_min;
+extern __constant__ TVars profile_y_max;
+extern __constant__ TVars profile_y_min;
 extern __constant__ TVars h_col_x;
 extern __constant__ TVars h_col_y;
 extern __constant__ TVars rho;
@@ -1180,6 +1183,7 @@ __global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety,
         TVars r0 = pos[i].r[0];
         TVars r1 = pos[i].r[1];
         TVars g = pos[i].g;
+        /*
         int Setx_i = floor((r0+2)/h_col_x);
         int Sety_i = floor((r1+10)/h_col_y);
 		Setx[i] = Setx_i;
@@ -1187,11 +1191,12 @@ __global__ void second_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety,
 		COL[i] = -1;
 
 		__syncthreads();
-
-		//	for (int j = (i+1); j < n; j++ ) {
-		for (int j = 0; j < n; ++j) {
-			if ((abs(Setx_i - Setx[j]) < 2) && (abs(Sety_i - Sety[j]) < 2) && (g * pos[j].g > 0) &&
-				(Ro2(r0, r1, pos[j].r[0], pos[j].r[1]) < r_col_same_sign2) && (j != i) && (fabs(g + pos[j].g) < max_ve_g)) {
+*/
+		COL[i] = -1;
+		for (int j = (i+1); j < n; j++ ) {
+//		for (int j = 0; j < n; ++j) {
+		//	if ((abs(Setx_i - Setx[j]) < 2) && (abs(Sety_i - Sety[j]) < 2) && (g * pos[j].g > 0) &&
+				if( (g * pos[j].g > 0) && (Ro2(r0, r1, pos[j].r[0], pos[j].r[1]) < r_col_same_sign2) && (j != i) && (fabs(g + pos[j].g) < max_ve_g)) {
 				COL[i] = j;
 				//j = n + 5;
 				break;
@@ -1206,21 +1211,24 @@ __global__ void first_setka_Kernel(Vortex *pos, size_t n, int *Setx, int *Sety, 
         TVars r0 = pos[i].r[0];
         TVars r1 = pos[i].r[1];
         TVars g = pos[i].g;
+        /*
         int Setx_i = floor((r0+2)/h_col_x);
         int Sety_i = floor((r1+10)/h_col_y);
         Setx[i] = Setx_i;
         Sety[i] = Sety_i;
         COL[i] = -1;
+        
 
         __syncthreads();
-
-        //  for (int j = (i+1); j < n; j++ ) {
-        for (int j = 0; j < n; ++j) {
-            if ((abs(Setx_i - Setx[j]) < 2) && (abs(Sety_i - Sety[j]) < 2) && (g * pos[j].g < 0) &&
-                (Ro2(r0, r1, pos[j].r[0], pos[j].r[1]) < r_col_diff_sign2)) {
+*/
+        COL[i] = -1;
+        for (int j = (i+1); j < n; j++ ) {
+      //  for (int j = 0; j < n; ++j) {
+       //     if ((abs(Setx_i - Setx[j]) < 2) && (abs(Sety_i - Sety[j]) < 2) && (g * pos[j].g < 0) &&
+                if( (g*pos[j].g<0) && (Ro2(r0, r1, pos[j].r[0], pos[j].r[1]) < r_col_diff_sign2)) {
                 COL[i] = j;
-                //j = n + 5;
-                break;
+                j = n + 5;
+                //break;
             }
         }
     }
@@ -1364,12 +1372,12 @@ __device__ inline bool hitting(tPanel *Panel, TVars a0, TVars a1, TVars* b, int*
 	//     ((y1>Profile[prf].up_right[1]) && (y2>Profile[prf].up_right[1])) ) hit=false;
 
 	//если вихрь вне габ. прямоугольника - возвращаем false
-	hit = !( ((x1<-0.5) && (x2<-0.5)) ||   
-			 ((x1>0.5) && (x2>0.5)) ||
+	hit = !( ((x1<profile_x_min) && (x2<profile_x_min)) ||   
+			 ((x1>profile_x_max) && (x2>profile_x_max)) ||
 //			 ((y1<-0.01) && (y2<-0.01)) ||
 //			 ((y1>0.01) && (y2>0.01))   );
-			 ((y1<-0.5) && (y2<-0.5)) ||
-			 ((y1>0.5) && (y2>0.5))   );
+			 ((y1<profile_y_min) && (y2<profile_y_min)) ||
+			 ((y1>profile_y_max) && (y2>profile_y_max))   );
   
 	//если внутри габ. прямоугольника - проводим контроль
 	if (hit)

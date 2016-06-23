@@ -15,6 +15,7 @@
 extern struct conf_t conf;
 extern cudaError_t cuda_error;
 extern int current_step;
+extern int first_step;
 
 __constant__ TVars dt;
 __constant__ size_t quant;
@@ -27,6 +28,10 @@ __constant__ TVars x_max;
 __constant__ TVars x_min;
 __constant__ TVars y_max;
 __constant__ TVars y_min;
+__constant__ TVars profile_x_max;
+__constant__ TVars profile_x_min;
+__constant__ TVars profile_y_max;
+__constant__ TVars profile_y_min;
 __constant__ TVars h_col_x;
 __constant__ TVars h_col_y;
 __constant__ TVars rho;
@@ -610,24 +615,8 @@ float stop_timer(cudaEvent_t start, cudaEvent_t stop) {
  __attribute__((unused))
 static void save_vel_to_file(Vortex *POS, PVortex *VEL, size_t size, int _step, int stage) {
     if( !POS || !VEL ) return;
-    char fname1[] = "output/vels/Vel";
-    char fname2[] = ".txt";
-    char fzero[] = "0";
-    char fstep[8];
-    char fname[ sizeof(fname1) + 10 ];
-    fname[0] = '\0';
-    char stage_str[6];
-    sprintf(stage_str, "_%d", stage);
-    sprintf(fstep,"%d", _step);
-    strcat(fname,fname1);
-    if (_step<10) strcat(fname,fzero);
-    if (_step<100) strcat(fname,fzero);
-    if (_step<1000) strcat(fname,fzero);
-    if (_step<10000) strcat(fname,fzero);
-    if (conf.steps >= 10000 && _step<100000) strcat(fname,fzero);
-    strcat(fname,fstep);
-    strcat(fname, stage_str);
-    strcat(fname,fname2);
+    char fname[256];
+    snprintf(fname, sizeof(fname), "output/vels/Vel%06d_%d.txt", _step, stage);
     FILE *outfile = fopen( fname, "w" );
     if( !outfile ) {
         log_e("error file opening %s : %s", fname, strerror(errno) );
@@ -1177,9 +1166,13 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
         cudaDeviceSynchronize();
         sort_Kernel <<< dim3(1), dim3(1) >>> (pos, n_dev);
         cudaDeviceSynchronize();
-        cuda_safe( cudaMemcpy( n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost ) );
-        log_d( "n_after collapse %d =  %zu", cc, *n );
+        size_t n_tmp = 0;
+        cuda_safe( cudaMemcpy( &n_tmp, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost ) );
+        log_d( "n_after collapse %d =  %zu", cc, n_tmp );
         cudaFree(n_dev);
+        if( *n == n_tmp )
+            break;
+        *n = n_tmp;
     }
     log_d( "second collapse" );
     for (int cc = 0; cc < conf.n_col; ++cc) {
@@ -1213,9 +1206,13 @@ int Step(Vortex *pos, PVortex *V, size_t *n, size_t s, TVars *d_g, PVortex *F_p,
         cudaDeviceSynchronize();
         sort_Kernel <<< dim3(1), dim3(1) >>> (pos, n_dev);
         cudaDeviceSynchronize();
-        cuda_safe( cudaMemcpy( n, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost ) );
-        log_d( "n_after collapse %d =  %zu", cc, *n );
+        size_t n_tmp = 0;
+        cuda_safe( cudaMemcpy( &n_tmp, n_dev, sizeof(size_t), cudaMemcpyDeviceToHost ) );
+        log_d( "n_after collapse %d =  %zu", cc, n_tmp );
         cudaFree(n_dev);
+        if( *n == n_tmp )
+            break;
+        *n = n_tmp;
     }
     return 0;
 }
@@ -1238,6 +1235,10 @@ int init_device_conf_values() {
     if( cuda_safe( cudaMemcpyToSymbol( x_min, &conf.x_min, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( y_max, &conf.y_max, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( y_min, &conf.y_min, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( profile_x_max, &conf.profile_x_max, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( profile_x_min, &conf.profile_x_min, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( profile_y_max, &conf.profile_y_max, sizeof(TVars) ) ) ) return 1;
+    if( cuda_safe( cudaMemcpyToSymbol( profile_y_min, &conf.profile_y_min, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( h_col_x, &conf.h_col_x, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( h_col_y, &conf.h_col_y, sizeof(TVars) ) ) ) return 1;
     if( cuda_safe( cudaMemcpyToSymbol( rho, &conf.rho, sizeof(TVars) ) ) ) return 1;
@@ -1301,7 +1302,7 @@ int second_speed(Vortex *pos, TVctr *V_inf, size_t n, Vortex *second_pos, PVorte
     if( velocity_control( pos, V_inf, n, second_pos, v_env, *n_second ) ) {
         return 1;
     }
-    if ( !current_step ) {
+    if ( current_step == first_step ) {
         if( cuda_safe( cudaMemcpy( v_second, v_env, sizeof(PVortex) * (*n_second), cudaMemcpyDeviceToDevice ) ) ) {
             log_e("unable to init v_second");
             return 1;

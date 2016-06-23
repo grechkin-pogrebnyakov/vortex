@@ -5,8 +5,8 @@ n_of_lines = 5
 x = -1.5
 if len(sys.argv) > 1:
     x = float(sys.argv[1])
-y_min = -2.0
-y_max = 2.0
+y_min = -1.0
+y_max = 1.0
 dy = (y_max - y_min)/(n_of_points-1)
 ddy = dy/n_of_lines
 print n_of_points*n_of_lines

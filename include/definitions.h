@@ -19,8 +19,8 @@
 #define LEV_INFO    3
 #define LEV_DEBUG   4
 
-#define LOG_BUF_SIZ 1024
-#define TIMINGS_BUF_SIZ 256
+#define LOG_BUF_SIZ (10240)
+#define TIMINGS_BUF_SIZ (1024)
 
 #define log_lev_file( lev, file, line, fmt, ... ) log_lev( lev, fmt " (%s:%d)", ##__VA_ARGS__, file, line )
 
@@ -111,6 +111,10 @@ struct conf_t {
     TVars v_inf_y;
     size_t n_of_points;
     TVars x_max, x_min, y_max, y_min;
+    TVars profile_x_min;
+    TVars profile_x_max;
+    TVars profile_y_min;
+    TVars profile_y_max;
     TVars ve_size;
     size_t n_col;
     TVars h_col_x, h_col_y;
@@ -119,7 +123,7 @@ struct conf_t {
     char pr_file[256];
     size_t birth_quant;
     TVars r_col_diff_sign, r_col_same_sign;
-    unsigned matrix_load;
+    uint8_t matrix_load;
     size_t v_inf_incr_steps;
     TVars max_ve_g;
     char log_file[256];
@@ -129,11 +133,12 @@ struct conf_t {
     char kadr_file[256];
     char second_points_file[256];
     TVars rel_t;
-    unsigned steady_flow;
+    uint8_t steady_flow;
 #ifndef NO_TREE
     size_t tree_depth;
     TVars theta;
 #endif // NO_TREE
+    uint8_t no_log_buf;
 };
 
 #endif // DEFINITIONS_H_

@@ -1,6 +1,7 @@
 #ifndef INCL_H_
 #define INCL_H_
 #define _USE_MATH_DEFINES
+#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,6 +10,7 @@
 #include "cuda_runtime.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <errno.h>
 #include <stdarg.h>
 

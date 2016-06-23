@@ -21,10 +21,20 @@ parser.add_argument('-fi', '--first_input', type=is_folder, required=True, help=
 parser.add_argument('-si', '--second_input', type=is_folder, required=True, help='path to second component files', metavar='/path/to/second_input', dest='second_folder')
 parser.add_argument('-o', '--output', default=None, help='if set animation will be saved to file', metavar='outfile.mp4', dest='output')
 parser.add_argument('-s', '--step', default=1, type=int, help='step of input files', metavar='S', dest='step')
+parser.add_argument('-p', '--profile', default=None, type=file, help='profile file', metavar='path/to/profile', dest='profile')
 parser.add_argument('--start', default=0, type=int, help='index of first file', metavar='S', dest='start')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s v0.1', help='print program version')
 parser.add_argument('--verbose-debug', help='print program version')
 arguments = vars(parser.parse_args())
+
+pr = arguments.get('profile')
+pr_arr = []
+if pr:
+    for line in pr:
+        rr = line.strip().split()
+        if len(rr) < 15:
+            continue
+        pr_arr.append([float(rr[1]),float(rr[2])])        
 
 folder = []
 def parse_folder(param_name):
@@ -43,7 +53,7 @@ start = arguments.get('start')
 fnames = [[],[]]
 i = start
 while True:
-    fname = "Kadr0%05d.txt" % i
+    fname = "Kadr%06d.txt" % i
     first_path = folder[0] + fname
     second_path = folder[1] + fname
     if (not os.path.exists(first_path)) or (not os.path.exists(second_path)):
@@ -58,19 +68,19 @@ fig = plt.figure()
 fig.set_figwidth(10.67)
 #fig.set_figwidth(10)
 #fig.set_size_inches(12, 6)
-ax = plt.axes(xlim=(-2, 10), ylim=(-3, 3) )
+ax = plt.axes(xlim=(-1, 5), ylim=(-1, 1) )
 point_size = 2 if output is None else 1.3
 dash, = ax.plot([], [], 'r.', ms=point_size)
 dash1, = ax.plot([], [], 'b.', ms=point_size)
-circle = plt.Circle((0,0), 0.5, lw=1, fc='none')
-ax.add_patch(circle)
+profile = matplotlib.patches.Polygon(pr_arr, lw=1, fc='none')
+ax.add_patch(profile)
 ax.set_aspect('equal')
 
 def init():
     dash.set_data([],[])
     dash1.set_data([],[])
-    circle.set_edgecolor('none')
-    return dash, dash1, circle
+    profile.set_edgecolor('none')
+    return dash, dash1, profile
 
 def animate(k):
     x = []
@@ -95,13 +105,13 @@ def animate(k):
         y1.append(float(line[3]))
     f.close()
     dash1.set_data(x1, y1)
-    circle.set_edgecolor('k')
-    return dash, dash1, circle
+    profile.set_edgecolor('k')
+    return dash, dash1, profile
 
 anim = animation.FuncAnimation(fig, animate, init_func=init,
-                                           frames=len(fnames[0]), interval=20)
+                                           frames=len(fnames[0]), interval=10)
 
 if output is not None:
-    anim.save(output, writer='ffmpeg', dpi=180, fps=30)#, codec='libx264')
+    anim.save(output, writer='ffmpeg', dpi=180)#, codec='libx264')
 else:
     plt.show()
